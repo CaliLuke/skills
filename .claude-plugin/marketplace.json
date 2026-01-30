@@ -1,0 +1,11 @@
+{
+  "name": "caliluke-skills",
+  "owner": {
+    "name": "CaliLuke"
+  },
+  "metadata": {
+    "description": "A personal collection of agent skills",
+    "version": "1.0.0"
+  },
+  "plugins": []
+}

@@ -8,25 +8,13 @@ Each folder in [`skills/`](./skills) is a self-contained skill with a `SKILL.md`
 
 Browse around and grab what you need.
 
-## Using a Skill
+## Installation
 
-Copy the skill folder into your project's `.claude/skills/` directory, or reference it however works for your setup.
-
-## Skill Format
-
-```yaml
----
-name: skill-name
-description: When Claude should use this skill.
----
-# Skill Name
-
-Instructions for Claude to follow.
+```bash
+npx skills add CaliLuke/skills
 ```
 
-## Creating Your Own
-
-Use the [`template/`](./template) folder as a starting point.
+Or copy a skill folder into your project's `.claude/skills/` directory.
 
 ## License
 

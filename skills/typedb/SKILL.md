@@ -2,7 +2,6 @@
 name: typeql
 description: Write and debug TypeQL queries for TypeDB 3.8+. Use when working with TypeDB schemas, data queries, insertions, deletions, or functions. Covers schema definition, CRUD operations, pattern matching, aggregations, and common pitfalls.
 ---
-
 # TypeQL Language Reference for TypeDB 3.8+
 
 This skill provides comprehensive guidance for writing TypeQL queries against TypeDB databases.
@@ -165,6 +164,8 @@ define
 | `@distinct`    | `owns item @distinct`           | Each value can only be owned once       |
 | `@subkey(...)` | `owns code @subkey(region)`     | Composite key with another attribute    |
 
+Note:  `@key` and `@unique` can only be put on `owns`, not directly on an attribute value definition.
+
 ---
 
 ## 2. Schema Modification
@@ -235,7 +236,7 @@ match
   $p isa person, has email "alice@example.com";
   $c isa company, has name "Acme Inc";
 insert
-  (employer: $c, employee: $p) isa employment,
+  $_ isa employment (employer: $c, employee: $p),
     has start_date 2024-01-15;
 ```
 
@@ -249,7 +250,7 @@ match
 put
   $p isa person, has email "alice@example.com", has name "Alice";
 insert
-  (employer: $c, employee: $p) isa employment;
+  employment (employer: $c, employee: $p);
 
 # Put finds existing person by email (key) or creates new one
 # Then insert creates the relation
@@ -299,13 +300,13 @@ delete
 match
   $p isa person, has email "alice@example.com";
   $c isa company, has name "Acme Inc";
-  $e (employer: $c, employee: $p) isa employment;
+  $e isa employment (employer: $c, employee: $p) ;
 delete
   $e;
 
 # Delete role player from relation (keeps relation)
 match
-  $rel (member: $old_member, group: $g) isa membership;
+  $rel isa membership (member: $old_member, group: $g) ;
   $old_member has email "alice@example.com";
 delete
   links ($old_member) of $rel;
@@ -364,7 +365,7 @@ fetch {
   "company": $c.name,
   "employees": [
     match
-      (employer: $c, employee: $p) isa employment;
+      employment (employer: $c, employee: $p);
     fetch {
       "name": $p.name
     }
@@ -399,7 +400,12 @@ match $p isa person, has age > 30;
 # Filter by relation
 match
   $c isa company, has name "Acme Inc";
-  (employer: $c, employee: $p) isa employment;
+  employment (employer: $c, employee: $p);
+
+# Filter by relation with relation variable
+match
+  $c isa company, has name "Acme Inc";
+  $rel isa employment, links (employer: $c, employee: $p);
 
 # Comparison operators: ==, !=, <, <=, >, >=, like, contains
 match
@@ -418,7 +424,7 @@ match
 match
   $p1 isa person;
   $p2 isa person;
-  (friend: $p1, friend: $p2) isa friendship;
+  friendship (friend: $p1, friend: $p2);
   not { $p1 is $p2; };  # Exclude self-friendship
 fetch { "person": $p1.name }
 ```
@@ -456,7 +462,7 @@ match
   $p isa person;
   not {
     $c isa company, has name "Acme Inc";
-    (employer: $c, employee: $p) isa employment;
+    employment (employer: $c, employee: $p);
   };
 fetch { "unemployed": $p.name }
 ```
@@ -543,14 +549,14 @@ reduce
 # Group by
 match
   $c isa company;
-  (employer: $c, employee: $e) isa employment;
+  employment (employer: $c, employee: $e);
 reduce
   $count = count groupby $c;
 
 # Multiple groupby variables
 match
   $c isa company, has industry $ind;
-  (employer: $c, employee: $e) isa employment;
+  employment (employer: $c, employee: $e);
   $e has department $dept;
 reduce
   $count = count groupby $ind, $dept;
@@ -691,6 +697,8 @@ define
     country value string;
 ```
 
+WARNING: structs are not yet implemented as of TypeDB 3.8.0, so should not be used.
+
 ### Using Structs
 
 ```typeql
@@ -747,7 +755,7 @@ fun count_users() -> integer:
 fun get_user_projects($user_email: string) -> { string }:
   match
     $u isa user, has email == $user_email;
-    (member: $u, project: $p) isa membership;
+    membership (member: $u, project: $p);
     $p has name $name;
   return { $name };
 
@@ -850,41 +858,13 @@ fetch {
 ---
 
 ## 12. Rules (Inference)
-
-```typeql
-define
-  # Transitive relation
-  rule transitive_manages:
-    when {
-      (manager: $a, report: $b) isa manages;
-      (manager: $b, report: $c) isa manages;
-    } then {
-      (manager: $a, report: $c) isa manages;
-    };
-
-  # Derived relation
-  rule colleague_rule:
-    when {
-      (employer: $c, employee: $p1) isa employment;
-      (employer: $c, employee: $p2) isa employment;
-      not { $p1 is $p2; };
-    } then {
-      (colleague: $p1, colleague: $p2) isa colleague;
-    };
-
-  # Rule with disjunction
-  rule privileged_access:
-    when {
-      $u isa user;
-      { $u has role "admin"; } or { $u has role "superuser"; };
-    } then {
-      (accessor: $u) isa privileged;
-    };
-```
+TypeDB 3.0 and on no longer uses rules, and uses only functions instead.
 
 ---
 
 ## 13. Common Patterns
+
+Note: each clause is not itself terminated with a trailing semicolon, only each statement within a clause is.
 
 ### Upsert (Insert if not exists)
 
@@ -895,7 +875,7 @@ match
 put
   $p isa person, has email "new@example.com", has name "New Person";
 insert
-  (employer: $c, employee: $p) isa employment;
+  employment (employer: $c, employee: $p);
 ```
 
 ### Polymorphic Queries
@@ -940,6 +920,29 @@ match
 
 ## 14. Critical Pitfalls
 
+### TypeDB 3 relation syntax
+
+Relations in TypeDB 3.x use the follow syntax only:
+
+Anonyous relation syntax:
+**always use this if you don't need a relation instance variable**
+```
+<rel-type> (<role-type>: <player var>, <role-type-2>, <player var 2>, ...);
+```
+
+Variabilized relation syntax (with a variable for the relation instance):
+**only use this if you need a variable for the relation instance**
+```
+$rel-var isa <rel-type>,
+  links (<role-type>: <player var>, <role-type-2>, <player var 2>, ...);
+```
+
+### Reserved keywords
+
+These are reserved identifiers. **Never use them as user-defined identifier like type labels or variables, in any capitalization. If required, append _ instead**:
+
+with, match, fetch, update, define, undefine, redefine, insert, put, delete, end , entity, relation, attribute, role , asc, desc, struct, fun, return, alias, sub, owns, as, plays, relates, iid, isa, links, has, is, or, not, try, in, true, false, of, from, first, last
+
 ### Match Clauses are Simultaneous (AND)
 
 All statements in `match` must be satisfied together. Not sequential.
@@ -949,7 +952,7 @@ All statements in `match` must be satisfied together. Not sequential.
 # ACTUAL: Only returns books that ARE in promotions
 match
   $b isa book;
-  (book: $b, promo: $p) isa promotion;
+  promotion (book: $b, promo: $p);
 ```
 
 ### Unconstrained Variables = Cross Join
@@ -963,7 +966,7 @@ match
 # FIX: Link variables through relations
 match
   $b isa book;
-  (book: $b, promotion: $p) isa book_promotion;
+  book_promotion (book: $b, promotion: $p);
 ```
 
 ### Symmetric Relations Return Duplicates
@@ -971,13 +974,13 @@ match
 ```typeql
 # PROBLEM: Returns (A,B) and (B,A)
 match
-  (friend: $p1, friend: $p2) isa friendship;
+  friendship (friend: $p1, friend: $p2);
 
 # FIX: Add asymmetric constraint
 match
   $p1 has email $e1;
   $p2 has email $e2;
-  (friend: $p1, friend: $p2) isa friendship;
+  friendship (friend: $p1, friend: $p2);
   $e1 < $e2;  # Each pair only once
 ```
 
@@ -998,7 +1001,7 @@ Variables inside `or` blocks are not guaranteed bound outside:
 match
   $p isa person;
   {
-    (employee: $p, employer: $company) isa employment;
+    employment (employee: $p, employer: $company);
   } or {
     $p has status "freelancer";
   };
@@ -1007,7 +1010,7 @@ match
 # VALID: Bind variable in parent scope first
 match
   $p isa person;
-  (employee: $p, employer: $company) isa employment;
+  employment (employee: $p, employer: $company);
   not { $company has name "BadCorp"; };
 ```
 
@@ -1016,16 +1019,16 @@ match
 ```typeql
 # INVALID: $x means different things in each branch
 match {
-    (person: $p, document: $x) isa editing;
+    editing (person: $p, document: $x);
 } or {
-    (person: $p, message: $x) isa messaging;
+    messaging (person: $p, message: $x);
 };
 
 # VALID: Use different variable names
 match {
-    (person: $p, document: $doc) isa editing;
+    editing (person: $p, document: $doc);
 } or {
-    (person: $p, message: $msg) isa messaging;
+    messaging (person: $p, message: $msg) ;
 };
 ```
 
@@ -1073,6 +1076,9 @@ commit
 | `datetime`    | Date and time          | `2024-01-15T10:30:00`                  |
 | `datetime-tz` | With timezone          | `2024-01-15T10:30:00 America/New_York` |
 | `duration`    | Time duration          | `P1Y2M3D`, `PT4H30M`                   |
+
+Note: `0dec` is not valid syntax in some versions of TypeDB. Always use `0.0dec`.
+
 
 ### Duration Format (ISO 8601)
 
@@ -1186,3 +1192,4 @@ reduce $count = count groupby $type;
 | `or`    | Disjunction                          |
 | `not`   | Negation                             |
 | `try`   | Optional pattern                     |
+

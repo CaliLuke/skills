@@ -1137,6 +1137,41 @@ match
 reduce $count = count groupby $type;
 ```
 
+### Debugging match clauses
+
+When a `match` returns results unexpectedly (say 0, though maybe more than expected), comment out some connected constraints with `#`, then count:
+
+```typeql
+match
+  $p isa person, has name $n;
+  $p has status "Active";                     # suspect constraint
+  # employment (employer: $c, employee: $p);  # commented out
+  # $c has name "Acme";                       # commented out
+reduce $count = count;
+```
+
+If count > 0, problem is in the commented-out half. If still 0, problem is in the active half. Repeat to isolate the exact constraint.
+
+### Debugging sulti-stage Pipelines
+
+When a pipeline (e.g., `match → reduce → match → update`) writes nothing, run successive **prefixes** to find where data stops flowing:
+
+```typeql
+# Prefix 1: just the match — does it find data?
+match ...;
+reduce $count = count;
+
+# Prefix 2: match + reduce — are aggregated values correct?
+match ...;
+reduce $total = sum($amount) groupby $customer;
+
+# Prefix 3: match + reduce + filter — do any pass the threshold?
+match ...;
+reduce $total = sum($amount) groupby $customer;
+match $total > 20000.0;
+reduce $count = count;
+```
+  
 ---
 
 ## 18. Complete Operator Reference

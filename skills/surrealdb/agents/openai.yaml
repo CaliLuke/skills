@@ -1,0 +1,4 @@
+interface:
+  display_name: "SurrealDB Docs"
+  short_description: "SurrealDB docs for queries, SDKs, schema, security, and ops"
+  default_prompt: "Use the SurrealDB skill to answer implementation, schema, query, SDK, deployment, or operations questions by routing through summary references first and opening raw upstream docs only when needed."

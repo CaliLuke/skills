@@ -6,6 +6,13 @@ A personal collection of agent skills I've built for Claude Code. These are tool
 
 Each folder in [`skills/`](./skills) is a self-contained skill with a `SKILL.md` file containing instructions Claude can follow. Some have helper scripts or reference docs.
 
+Current skills include:
+
+- `ai-testing`
+- `surrealdb`
+- `type-bridge`
+- `typedb`
+
 Browse around and grab what you need.
 
 ## Installation

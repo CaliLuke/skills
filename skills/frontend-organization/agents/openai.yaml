@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Organization"
+  short_description: "Clarify route ownership, screen ownership, and feature boundaries"
+  default_prompt: "Review this feature's file layout and naming, then propose or apply changes that make route ownership, screen ownership, and the public API obvious."

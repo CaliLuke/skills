@@ -14,6 +14,9 @@ This is a collection of agent skills. Each skill is in `skills/{skill-name}/SKIL
 - **ts-quality-gates** - Set up TypeScript quality gates (typecheck, ESLint, Prettier, duplicates, dead code, file length) in any TS repo with a `check.sh` entry point.
 - **go-quality-gates** - Set up Go quality gates (build, vet, golangci-lint, goimports, duplicates, dead code, complexity, mod tidy drift, coverage) in any Go repo with a `check.sh` entry point.
 - **py-quality-gates** - Set up Python quality gates (ruff lint/format, type checking, pytest + coverage, complexity, dead code, duplicates, file length) in any Python repo with a single `check.sh` script.
+- **storybook-stories** - Authoring `.stories.ts(x)` / `.mdx`, configuring `.storybook/`, sidebar hierarchy, play functions, and `composeStories`. Scoped to CSF3, React + TS, Storybook v10.3.
+- **sqlite-debug-logging** - Token-efficient SQLite-based debug logging for frontend projects: local log server, structured logs, AI-friendly triage that survives page refreshes.
+- **log-hunt** - Triage frontend issues by querying the SQLite debug log database produced by `sqlite-debug-logging`.
 
 ## Usage
 

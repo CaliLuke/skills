@@ -931,16 +931,20 @@ match
 Use **only** these two forms. Other shapes that parse — e.g. `(<players>) isa <rel-type>` (reversed) or `$r isa <rel-type> (<players>)` (compact-typed) — are deprecated or ambiguous; do not generate them. A bare anonymous relation with no anchor — `(<players>);` — is **not** valid: it needs either a relation type or a relation variable (see polymorphic note below).
 
 **1. Anonymous (no relation variable):**
-```
+
+```typeql
 <rel-type> (<role-type>: <player var>, <role-type-2>: <player var 2>, ...);
 ```
+
 Use this when you don't need to refer to the relation instance.
 
 **2. Typed relation variable with `links`:**
-```
+
+```typeql
 $rel-var isa <rel-type>,
   links (<role-type>: <player var>, <role-type-2>: <player var 2>, ...);
 ```
+
 Use this when you need a variable for the relation instance — e.g. to delete it, attach `has` to it, or reference it elsewhere in the query.
 
 Role types can be omitted to match any role (`friendship ($a, $b);`). For **fully-polymorphic matching** (matching any relation type), use an anonymous relation variable with `links`: `$_ links ($a, $b);`.

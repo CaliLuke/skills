@@ -904,7 +904,7 @@ fetch { "name": $n };
 # Find all connected nodes (1-hop via any relation, role types omitted)
 match
   $center isa entity, has id == "target-id";
-  ($center, $neighbor);
+  $_ links ($center, $neighbor);
   not { $neighbor is $center; };
 fetch {
   "center": $center.id,
@@ -928,7 +928,7 @@ match
 
 ### TypeDB 3 relation syntax
 
-Use **only** these two forms. Other shapes that parse — e.g. `(<players>) isa <rel-type>` (reversed), `$r isa <rel-type> (<players>)` (compact-typed), or a bare `$r links (<players>)` without an `isa` constraint — are deprecated or ambiguous; do not generate them.
+Use **only** these two forms. Other shapes that parse — e.g. `(<players>) isa <rel-type>` (reversed) or `$r isa <rel-type> (<players>)` (compact-typed) — are deprecated or ambiguous; do not generate them. A bare anonymous relation with no anchor — `(<players>);` — is **not** valid: it needs either a relation type or a relation variable (see polymorphic note below).
 
 **1. Anonymous (no relation variable):**
 ```
@@ -943,7 +943,7 @@ $rel-var isa <rel-type>,
 ```
 Use this when you need a variable for the relation instance — e.g. to delete it, attach `has` to it, or reference it elsewhere in the query.
 
-Role types can be omitted to match any role (`friendship ($a, $b);`). In form 1, the relation type itself can also be omitted for fully-polymorphic matching (`($a, $b);`).
+Role types can be omitted to match any role (`friendship ($a, $b);`). For **fully-polymorphic matching** (matching any relation type), use an anonymous relation variable with `links`: `$_ links ($a, $b);`.
 
 ### Reserved keywords
 

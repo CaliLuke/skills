@@ -236,7 +236,7 @@ match
   $p isa person, has email "alice@example.com";
   $c isa company, has name "Acme Inc";
 insert
-  $_ isa employment (employer: $c, employee: $p),
+  $_ isa employment, links (employer: $c, employee: $p),
     has start_date 2024-01-15;
 ```
 
@@ -300,13 +300,13 @@ delete
 match
   $p isa person, has email "alice@example.com";
   $c isa company, has name "Acme Inc";
-  $e isa employment (employer: $c, employee: $p) ;
+  $e isa employment, links (employer: $c, employee: $p);
 delete
   $e;
 
 # Delete role player from relation (keeps relation)
 match
-  $rel isa membership (member: $old_member, group: $g) ;
+  $rel isa membership, links (member: $old_member, group: $g);
   $old_member has email "alice@example.com";
 delete
   links ($old_member) of $rel;
@@ -383,7 +383,7 @@ fetch {
   "company": $c.name,
   "employee_count": (
     match
-      (employer: $c, employee: $e) isa employment;
+      employment (employer: $c, employee: $e);
     return count;
   )
 };
@@ -490,7 +490,7 @@ fetch {
 
 ## 5. Stream Operators
 
-Conventional order is `sort`, `offset`, `limit`. The parser does not enforce ordering — these operators can be reordered or repeated within a pipeline.
+These operators can be reordered or repeated within a pipeline.
 
 ```typeql
 # Sort results
@@ -901,10 +901,10 @@ fetch { "name": $n };
 ### Graph Traversal
 
 ```typeql
-# Find all connected nodes (1-hop)
+# Find all connected nodes (1-hop via any relation, role types omitted)
 match
   $center isa entity, has id == "target-id";
-  $rel links ($center), links ($neighbor);
+  ($center, $neighbor);
   not { $neighbor is $center; };
 fetch {
   "center": $center.id,
@@ -918,7 +918,7 @@ fetch {
 # Check if pattern exists
 match
   $u isa user, has email "alice@example.com";
-  not { (member: $u) isa team_membership; };
+  not { team_membership (member: $u); };
 # Returns results only if user exists but has no team
 ```
 
@@ -928,20 +928,22 @@ match
 
 ### TypeDB 3 relation syntax
 
-Relations in TypeDB 3.x use the follow syntax only:
+Use **only** these two forms. Other shapes that parse — e.g. `(<players>) isa <rel-type>` (reversed), `$r isa <rel-type> (<players>)` (compact-typed), or a bare `$r links (<players>)` without an `isa` constraint — are deprecated or ambiguous; do not generate them.
 
-Anonyous relation syntax:
-**always use this if you don't need a relation instance variable**
+**1. Anonymous (no relation variable):**
 ```
 <rel-type> (<role-type>: <player var>, <role-type-2>: <player var 2>, ...);
 ```
+Use this when you don't need to refer to the relation instance.
 
-Variabilized relation syntax (with a variable for the relation instance):
-**only use this if you need a variable for the relation instance**
+**2. Typed relation variable with `links`:**
 ```
 $rel-var isa <rel-type>,
   links (<role-type>: <player var>, <role-type-2>: <player var 2>, ...);
 ```
+Use this when you need a variable for the relation instance — e.g. to delete it, attach `has` to it, or reference it elsewhere in the query.
+
+Role types can be omitted to match any role (`friendship ($a, $b);`). In form 1, the relation type itself can also be omitted for fully-polymorphic matching (`($a, $b);`).
 
 ### Reserved keywords
 

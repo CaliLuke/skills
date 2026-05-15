@@ -8,8 +8,7 @@ This is a collection of agent skills. Each skill is in `skills/{skill-name}/SKIL
 - **type-bridge** - Python ORM for TypeDB. Entities, relations, attributes, CRUD, queries, expressions, schema management.
 - **ai-testing** - Guidelines for writing robust tests. Test design, assertions, mocking, debugging strategies.
 - **fowler-refactoring** - A practical, task-oriented implementation of Martin Fowler's refactoring approach, used when improving design without changing behavior.
-- **go-1-25-review** - Review and refactor Go code to leverage Go 1.25 features, new standard-library APIs, and new tooling guidance.
-- **go-1-26-review** - Review and refactor Go code to leverage Go 1.26 features, new language and standard-library APIs, modern `go fix` workflows, and newly deprecated or tightened behaviors.
+- **go-modern-review** - Review and refactor Go code for Go 1.25 and 1.26 features, new language/stdlib APIs, `go fix` workflows, and newly deprecated or tightened behaviors.
 - **surrealdb** - SurrealDB documentation router. Covers SurrealDB core concepts, SurrealQL, schema design, security, deployment, SDKs, SurrealDB Cloud, Surrealist, integrations, and tutorials.
 - **ts-quality-gates** - Set up TypeScript quality gates (typecheck, ESLint, Prettier, duplicates, dead code, file length) in any TS repo, wired through `prek` with a `check.sh` orchestrator.
 - **go-quality-gates** - Set up Go quality gates (build, vet, golangci-lint, goimports, duplicates, dead code, complexity, mod tidy drift, coverage) in any Go repo, wired through `prek` with a `check.sh` orchestrator.

@@ -1,6 +1,6 @@
 ---
 name: frontend-organization
-description: Review or refactor frontend file layout, naming, and feature boundaries so route ownership, screen ownership, and public APIs are obvious. Use when the code feels AI-organized, when screen/container ownership is unclear, or when feature barrels and shared UI boundaries need cleanup.
+description: Review or refactor frontend file layout, naming, and feature boundaries. Use when code feels AI-organized, route/screen/container ownership is unclear, or feature barrels and shared UI boundaries need cleanup.
 context: fork
 ---
 
@@ -158,13 +158,13 @@ Other features should import from a feature barrel, not from that feature's inte
 Bad:
 
 ```ts
-import { ProjectCard } from '@/features/projects/components/ProjectCard/ProjectCard'
+import { ProjectCard } from "@/features/projects/components/ProjectCard/ProjectCard";
 ```
 
 Good:
 
 ```ts
-import { useProjectsListQuery } from '@/features/projects'
+import { useProjectsListQuery } from "@/features/projects";
 ```
 
 If another feature needs a leaf UI component directly, one of these is usually true:

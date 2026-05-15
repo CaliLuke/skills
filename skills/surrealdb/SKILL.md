@@ -1,6 +1,6 @@
 ---
 name: surrealdb
-description: Work with SurrealDB, SurrealQL, schema design, auth, permissions, deployment, SDKs, SurrealDB Cloud, Surrealist, and integrations. Use when implementing or debugging SurrealDB-backed systems, writing SurrealQL, modeling data, configuring security, or answering product and SDK questions.
+description: SurrealDB and SurrealQL — schema design, auth/permissions, deployment, SDKs, SurrealDB Cloud, Surrealist, integrations. Use when implementing or debugging SurrealDB-backed systems, writing SurrealQL, modeling data, or answering product/SDK questions.
 ---
 
 # SurrealDB

@@ -1,6 +1,6 @@
 ---
 name: ai-testing
-description: Guidelines for writing effective, robust, and maintainable tests. Use when writing unit tests, integration tests, debugging test failures, or setting up test doubles. Covers test design, assertions, fakes vs mocks, and debugging strategies.
+description: Write robust, maintainable tests. Use when writing unit or integration tests, debugging test failures, or setting up fakes/mocks. Covers test design, assertions, and test doubles.
 ---
 
 # AI Testing Guidelines

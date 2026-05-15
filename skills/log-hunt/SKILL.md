@@ -1,6 +1,6 @@
 ---
 name: log-hunt
-description: Hunt for frontend issues using SQLite debug logs. Use when the user says "hunt for issues", "check logs for problems", "log hunt", "find bugs in logs", "look for issues", "debug session", or wants to triage errors/warnings from the SQLite debug database. Also use when the user asks to wipe/clear the log database.
+description: Hunt for frontend issues in SQLite debug logs. Use for "hunt for issues", "check logs", "log hunt", "find bugs in logs", "debug session", triaging errors/warnings from the SQLite debug DB, or wiping the log database.
 ---
 
 # Log Hunt — SQLite Debug Triage

@@ -1,6 +1,6 @@
 ---
 name: SQLite Debug Logging
-description: This skill should be used when the user asks to "add debug logging", "set up SQLite logging", "create a local log server", "implement structured logging for debugging", "add AI-friendly logging", "set up frontend observability", or needs guidance on token-efficient logging systems that persist across page refreshes.
+description: Token-efficient SQLite-based debug logging for frontend projects — local log server, structured logs, AI-friendly triage that persists across page refreshes. Use for "add debug logging", "set up SQLite logging", "AI-friendly logging", or frontend observability.
 ---
 
 # SQLite Debug Logging for AI-Assisted Debugging
@@ -9,12 +9,12 @@ This skill teaches you how to leverage SQLite-based debug logging for efficient 
 
 ## Why SQLite for Debugging?
 
-| Raw Logs Problem | SQLite Solution |
-|------------------|-----------------|
-| Parsing thousands of lines wastes tokens | Query only what you need |
-| Lost on page refresh | Persists to disk |
-| No structure, hard to filter | Indexed, queryable columns |
-| Grep returns too much context | SQL returns exact matches |
+| Raw Logs Problem                         | SQLite Solution            |
+| ---------------------------------------- | -------------------------- |
+| Parsing thousands of lines wastes tokens | Query only what you need   |
+| Lost on page refresh                     | Persists to disk           |
+| No structure, hard to filter             | Indexed, queryable columns |
+| Grep returns too much context            | SQL returns exact matches  |
 
 ## Debugging Strategy
 
@@ -154,16 +154,16 @@ sqlite3 -line logs/debug.sqlite "SELECT * FROM logs WHERE id = 1"
 
 Most SQLite debug logging implementations use this schema:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | INTEGER | Auto-incrementing primary key |
-| `timestamp` | TEXT | ISO 8601 timestamp |
-| `level` | TEXT | `debug`, `info`, `warn`, `error` |
-| `event` | TEXT | Action identifier (e.g., `form.submitFailed`) |
-| `message` | TEXT | Human-readable description |
-| `data` | TEXT | JSON-encoded additional context |
-| `component` | TEXT | Extracted from event prefix |
-| `route` | TEXT | Browser route when logged |
+| Column      | Type    | Description                                   |
+| ----------- | ------- | --------------------------------------------- |
+| `id`        | INTEGER | Auto-incrementing primary key                 |
+| `timestamp` | TEXT    | ISO 8601 timestamp                            |
+| `level`     | TEXT    | `debug`, `info`, `warn`, `error`              |
+| `event`     | TEXT    | Action identifier (e.g., `form.submitFailed`) |
+| `message`   | TEXT    | Human-readable description                    |
+| `data`      | TEXT    | JSON-encoded additional context               |
+| `component` | TEXT    | Extracted from event prefix                   |
+| `route`     | TEXT    | Browser route when logged                     |
 
 Always check the actual schema if queries fail:
 
@@ -264,20 +264,20 @@ See `examples/log-server.ts` for a complete Bun implementation.
 Add a function that sends logs to SQLite alongside your existing logging:
 
 ```typescript
-const SQLITE_LOG_ENABLED = import.meta.env.VITE_DEBUG_SQLITE === 'true'
-const SQLITE_LOG_URL = 'http://localhost:3847/logs'
+const SQLITE_LOG_ENABLED = import.meta.env.VITE_DEBUG_SQLITE === "true";
+const SQLITE_LOG_URL = "http://localhost:3847/logs";
 
 function toSqlite(entry: LogEntry) {
-  if (!SQLITE_LOG_ENABLED) return
+  if (!SQLITE_LOG_ENABLED) return;
 
   fetch(SQLITE_LOG_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...entry,
       route: window.location.pathname,
     }),
-  }).catch(() => {})  // Fire-and-forget, silent failure
+  }).catch(() => {}); // Fire-and-forget, silent failure
 }
 ```
 
@@ -294,21 +294,21 @@ Create a script that starts the log server alongside your dev server:
 
 ```javascript
 // scripts/dev.mjs
-import { spawn } from 'child_process'
+import { spawn } from "child_process";
 
-const logServer = spawn('bun', ['run', 'scripts/log-server.ts'], {
-  stdio: 'inherit',
-})
+const logServer = spawn("bun", ["run", "scripts/log-server.ts"], {
+  stdio: "inherit",
+});
 
-const devServer = spawn('bun', ['run', 'vite'], {
-  stdio: 'inherit',
-})
+const devServer = spawn("bun", ["run", "vite"], {
+  stdio: "inherit",
+});
 
-process.on('SIGINT', () => {
-  logServer.kill()
-  devServer.kill()
-  process.exit()
-})
+process.on("SIGINT", () => {
+  logServer.kill();
+  devServer.kill();
+  process.exit();
+});
 ```
 
 Update `package.json`:
@@ -369,27 +369,27 @@ SELECT * FROM logs WHERE event LIKE 'api.request.%'
 
 ```typescript
 // Bad: no context
-logger.error('form.submit.failed', { message: 'Form failed' })
+logger.error("form.submit.failed", { message: "Form failed" });
 
 // Good: actionable context
-logger.error('form.submit.failed', {
-  message: 'Form validation failed',
-  formName: 'checkout',
+logger.error("form.submit.failed", {
+  message: "Form validation failed",
+  formName: "checkout",
   validationErrors: errors,
-  fieldValues: sanitizedValues,  // never log passwords/tokens
-})
+  fieldValues: sanitizedValues, // never log passwords/tokens
+});
 ```
 
 ### Use trace IDs for request flows
 
 ```typescript
-const traceId = crypto.randomUUID()
+const traceId = crypto.randomUUID();
 
-logger.info('checkout.started', { trace_id: traceId, cartId })
+logger.info("checkout.started", { trace_id: traceId, cartId });
 // ... later
-logger.info('checkout.paymentProcessed', { trace_id: traceId, amount })
+logger.info("checkout.paymentProcessed", { trace_id: traceId, amount });
 // ... later
-logger.info('checkout.completed', { trace_id: traceId, orderId })
+logger.info("checkout.completed", { trace_id: traceId, orderId });
 ```
 
 Query the entire flow:
@@ -407,28 +407,28 @@ function serializeError(error: unknown) {
       error_message: error.message,
       error_class: error.name,
       error_stack: error.stack?.slice(0, 2000),
-    }
+    };
   }
-  return { error_message: String(error) }
+  return { error_message: String(error) };
 }
 
 // Usage
-logger.error('operation.failed', {
-  message: 'Operation failed',
+logger.error("operation.failed", {
+  message: "Operation failed",
   ...serializeError(error),
-})
+});
 ```
 
 ## Adapting to Different Stacks
 
 The pattern works with any stack. Adapt these pieces:
 
-| Stack | Log Server | Dev Script | Env Var |
-|-------|------------|------------|---------|
-| Vite + Bun | `bun run scripts/log-server.ts` | Spawn both processes | `VITE_DEBUG_SQLITE` |
-| Next.js | Same server, different port | Use `concurrently` | `NEXT_PUBLIC_DEBUG_SQLITE` |
-| Node + Express | Express middleware or separate server | npm-run-all | `DEBUG_SQLITE` |
-| Plain HTML/JS | Same server | Just start server | Check at runtime |
+| Stack          | Log Server                            | Dev Script           | Env Var                    |
+| -------------- | ------------------------------------- | -------------------- | -------------------------- |
+| Vite + Bun     | `bun run scripts/log-server.ts`       | Spawn both processes | `VITE_DEBUG_SQLITE`        |
+| Next.js        | Same server, different port           | Use `concurrently`   | `NEXT_PUBLIC_DEBUG_SQLITE` |
+| Node + Express | Express middleware or separate server | npm-run-all          | `DEBUG_SQLITE`             |
+| Plain HTML/JS  | Same server                           | Just start server    | Check at runtime           |
 
 ## Implementation Reference
 

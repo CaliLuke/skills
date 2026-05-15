@@ -1,6 +1,6 @@
 ---
 name: storybook-stories
-description: This skill should be used when authoring or editing `.stories.ts(x)` / `.mdx` files, configuring `.storybook/main.ts`/`preview.ts`/`manager.ts`, restructuring Storybook sidebar/hierarchy, debugging missing stories or single-story hoisting, writing play functions, using `composeStories` in Vitest/Jest/Playwright, or preparing Storybook manifests for AI/MCP. Also triggers on visible `Meta<typeof ...>`, `StoryObj`, or `@storybook/*` imports even when Storybook isn't named. Scope: CSF3, React, TypeScript, v10.3.
+description: Author or edit `.stories.ts(x)`/`.mdx`, configure `.storybook/` (main/preview/manager), restructure sidebar/hierarchy, debug missing stories or single-story hoisting, write play functions, or use `composeStories` in Vitest/Jest/Playwright. Also triggers on `Meta<typeof ...>`, `StoryObj`, or `@storybook/*` imports. Scope: CSF3, React + TS, v10.3.
 ---
 
 # Storybook stories (v10.3, React + TS, CSF3)

@@ -1,6 +1,6 @@
 ---
 name: functional-ui-refactor
-description: Refactor UI architecture by collapsing distinctions without difference, naming components by UI responsibility instead of schema entities, pushing data sourcing out of UI components, and promoting generic primitives into shared UI. Use when a UI surface feels over-specialized, duplicated by entity names, or too smart about data fetching.
+description: Refactor UI by collapsing distinctions without difference, naming components by responsibility (not schema entities), pushing data sourcing out of UI, and promoting generic primitives into shared UI. Use when a UI feels over-specialized, entity-named, or too smart about data fetching.
 context: fork
 ---
 
@@ -210,9 +210,10 @@ If virtualization logic is leaking into row/cell/card components, the split is w
 ### 11. The Headless Controller Pattern (Comp vs Ctrl)
 
 For dense interactive surfaces, decouple structural rendering from behavioral control using a Controller/Component pair.
+
 - The **Component** strictly manages DOM elements/framework templates and implements a granular, explicit interface for visual updates (e.g., `setTopHeight(h)`, `setColumnMovingCss(on)`).
 - The **Controller** owns the logical state, observes events, and drives the component via its interface.
-This prevents the UI tree from becoming a dumping ground for interaction logic and keeps coordination fully testable and framework-agnostic.
+  This prevents the UI tree from becoming a dumping ground for interaction logic and keeps coordination fully testable and framework-agnostic.
 
 ### 12. Feature Isolation over Monolithic Hooks
 
@@ -258,7 +259,7 @@ For complex surfaces that render hundreds of elements during scroll or interacti
 
 ### 22. The `afterGuiAttached` Lifecycle for Measurement & Focus
 
-Do not attempt to measure DOM nodes, calculate absolute positioning, or grab focus while a component is still spinning up its internal state. Introduce a distinct `afterGuiAttached` (or equivalent) lifecycle callback that only fires *after* the component's root element has been physically appended to the active DOM document. Rely on this strict lifecycle step to trigger focus drops and layout calculations to prevent premature reflows.
+Do not attempt to measure DOM nodes, calculate absolute positioning, or grab focus while a component is still spinning up its internal state. Introduce a distinct `afterGuiAttached` (or equivalent) lifecycle callback that only fires _after_ the component's root element has been physically appended to the active DOM document. Rely on this strict lifecycle step to trigger focus drops and layout calculations to prevent premature reflows.
 
 ### 23. CSS Translates for Virtualized Row Positioning
 

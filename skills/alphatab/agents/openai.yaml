@@ -1,0 +1,4 @@
+interface:
+  display_name: "AlphaTab"
+  short_description: "Work with AlphaTab music notation"
+  default_prompt: "Use $alphatab to integrate AlphaTab notation rendering and playback."

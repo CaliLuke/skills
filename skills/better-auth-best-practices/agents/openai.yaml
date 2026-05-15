@@ -1,0 +1,4 @@
+interface:
+  display_name: "Better Auth Best Practices"
+  short_description: "Scaffold and configure Better Auth"
+  default_prompt: "Use $better-auth-best-practices to scaffold Better Auth, including email/password, MFA, and plugins when needed."

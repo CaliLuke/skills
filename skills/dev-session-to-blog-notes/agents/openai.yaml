@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Session to Blog Notes"
+  short_description: "Turn coding transcripts into blog notes"
+  default_prompt: "Use $dev-session-to-blog-notes to turn this development session into blog-writing notes."

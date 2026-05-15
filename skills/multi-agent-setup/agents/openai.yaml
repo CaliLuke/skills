@@ -1,0 +1,4 @@
+interface:
+  display_name: "Multi-agent Setup"
+  short_description: "Share repo skills across coding agents"
+  default_prompt: "Use $multi-agent-setup to set up shared repo instructions and skills across agents."

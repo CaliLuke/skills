@@ -1,0 +1,4 @@
+interface:
+  display_name: "Linear Ticket Triage"
+  short_description: "Reconcile Linear tickets with code"
+  default_prompt: "Use $linear-ticket-triage to audit Linear issues against this repo."

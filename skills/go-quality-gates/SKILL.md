@@ -1,11 +1,11 @@
 ---
 name: go-quality-gates
-description: Set up Go quality gates (build, vet, golangci-lint, goimports, duplicates, dead code, complexity, mod tidy drift, coverage) in any Go repo with a `check.sh` entry point — and an optional parallel orchestrator for larger setups. Use when the user says "add quality gates for Go", "set up Go linting", "add golangci-lint", "add go checks", "Go quality gate setup", "add check.sh for Go", or wants to establish code quality infrastructure in a Go project (as opposed to TypeScript or Python).
+description: Set up Go quality gates (build, vet, golangci-lint, goimports, duplicates, dead code, complexity, mod tidy drift, coverage) in any Go repo, wired through `prek` (pre-commit reimagined) with a `check.sh` orchestrator underneath. Use when the user says "add quality gates for Go", "set up Go linting", "add golangci-lint", "add go checks", "Go quality gate setup", "add prek for Go", or wants to establish code quality infrastructure in a Go project (as opposed to TypeScript or Python).
 ---
 
 # Go Quality Gates Setup
 
-Set up a quality gate system for a Go project. The deliverable is a `check.sh` entry point, a `.golangci.yml` config, and any extra tool configs (`dupl`, `deadcode`, `gocyclo`) — wired to the repo's actual module layout and build tags. For larger repos, Step 11 describes the upgrades that production setups use.
+Set up a quality gate system for a Go project. The prescribed checker command is `prek run --all-files`. The deliverables are a `.pre-commit-config.yaml` that points `prek` at a `check.sh` orchestrator, a `.golangci.yml` config, and any extra tool configs (`dupl`, `deadcode`, `gocyclo`) — wired to the repo's actual module layout and build tags. For larger repos, Step 12 describes the upgrades that production setups use.
 
 ## Step 1: Assess the repo before touching anything
 
@@ -14,7 +14,7 @@ Before writing or installing anything, understand the repo. Two outcomes are pos
 Gather in parallel:
 
 1. `go.mod` / `go.work` — Go version, module path, workspace layout, existing dependencies.
-2. Existing config files: `.golangci.yml` / `.golangci.yaml` / `.golangci.toml`, `.revive.toml`, `staticcheck.conf`, `.goreleaser.yml`, any `scripts/check*.sh` / `scripts/lint*.sh` / `Makefile` targets (`make check`, `make lint`, `make test`).
+2. Existing config files: `.golangci.yml` / `.golangci.yaml` / `.golangci.toml`, `.revive.toml`, `staticcheck.conf`, `.goreleaser.yml`, `.pre-commit-config.yaml`, any `scripts/check*.sh` / `scripts/lint*.sh` / `Makefile` targets (`make check`, `make lint`, `make test`).
 3. `CLAUDE.md` / `AGENTS.md` — canonical commands already documented.
 4. Source layout: top-level `cmd/`, `internal/`, `pkg/`, nested modules, build tags (`//go:build cgo`, `//go:build integration`), generated files (`*_gen.go`, `zz_generated_*.go`).
 5. CGo / native deps — look for `CGO_ENABLED`, `CGO_LDFLAGS`, or `cgo` build tags; these change how every gate must be invoked.
@@ -29,23 +29,41 @@ Go is simpler than JS here (one toolchain, no package managers), but build tags 
 
 Throughout this skill, `<GOFLAGS>` means whatever tag/env combination the repo already uses. If the detected setup is ambiguous or tag-gated packages exist, ask before generating.
 
-## Step 2: Stop if a mature system already exists
+## Step 2: Inventory existing gates and implement the delta
 
-A repo with a working orchestrator and matching configs should not be silently overwritten. Signals:
+Most Go repos have **some** gates already (a `Makefile` running `go vet`, a stale `.golangci.yml`, a pre-push hook calling `gofmt`) but not the full set this skill installs. The default behavior is to **fill in the missing gates**, not to stop. Only defer the whole job when every row of the checklist below is already ✅ or when the existing orchestrator is genuinely incompatible with adding gates (rare — see end of step).
 
-- A `Makefile` or script runs multiple gates (e.g. `make check`, `scripts/run-golangci.sh`, `scripts/check.sh`). Inspect targets named `check`, `verify`, `ci`, `quality`, `lint`.
-- Config files for each gate already exist (`.golangci.yml`, any per-tool configs, repo-specific lint runners).
-- `CLAUDE.md` / `AGENTS.md` lists canonical lint/test/build commands.
-- Project-specific gates the skill's template does NOT cover (CGo cross-compilation checks, generated-code freshness, schema-drift checks, protobuf regen checks, vuln scanning, license audits).
+Walk this checklist before writing anything. For each gate, check the listed signal; mark ✅ if present and working, ❌ if missing or broken on disk.
 
-If **two or more** signals are present:
+| Gate                                      | Detection signal                                                                                               | Where to add if ❌ |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `go build` / `go vet` baseline            | Always available in a Go module                                                                                | Step 4 invocation  |
+| `.golangci.yml` config                    | `.golangci.yml` / `.golangci.yaml` / `.golangci.toml` exists with `version: "2"` and a non-trivial linter list | Step 5             |
+| goimports formatting check                | Existing orchestrator runs `goimports -l` or `gofmt -l` with a non-empty-output failure                        | Step 6 + check.sh  |
+| `go mod tidy` drift check                 | Existing orchestrator detects drift after running `go mod tidy`                                                | Step 8             |
+| `deadcode` reachability gate              | Tool installed AND invoked by orchestrator (binary repos only — skip for libraries; see Step 7)                | Step 7 + check.sh  |
+| `dupl` duplication gate                   | Tool installed AND invoked by orchestrator                                                                     | Step 7 + check.sh  |
+| Test gate                                 | Existing orchestrator runs `go test ./...` (ideally with `-race`)                                              | Step 8             |
+| `check.sh` orchestrator                   | `check.sh` (or equivalent `Makefile`/`scripts/check.sh` target) runs the full gate sequentially                | Step 8             |
+| `.pre-commit-config.yaml` + `prek` wiring | File exists and wires `check.sh` (or per-gate hooks) for `prek`/`pre-commit`                                   | Step 9             |
 
-1. Run the existing orchestrator once to confirm it still works — this is both a sanity check and a way to show the user their current state.
-2. Report what you found and list the gates it already covers.
-3. Ask the user to choose: **(a) skip**, **(b) add a thin `check.sh` wrapper that calls the existing orchestrator** (same entry point across repos, zero behavior change), or **(c) extend the existing orchestrator with a specific named missing gate** (ask which one — duplicates, dead code, vuln scan, etc.).
-4. Only proceed to Step 3+ if the user explicitly asks to replace the existing system.
+Run the existing orchestrator once (`make check`, `scripts/check.sh`, `./check.sh`) before counting any ✅. A passing run earns it; a failing run means the gate is broken regardless of config presence — treat as ❌ and fix or replace.
 
-Why this matters: the skill's default `check.sh` is sequential bash with a fixed gate list and defaults tuned for a fresh repo. A Makefile orchestrator, custom CGo flags, or project-specific gates are strictly **more** than the template provides — overwriting them is a downgrade that usually breaks pre-commit/pre-push hooks in the process.
+Then report a short table to the user and **proceed to implement every ❌ row** without asking permission per row. Two modes:
+
+- **No existing orchestrator** — create `check.sh` and `.pre-commit-config.yaml` per Steps 8–9; add only the gates the inventory marked ❌.
+- **Existing orchestrator present** — **extend it** rather than replacing. Add new targets to the `Makefile`, append gate invocations to the existing `check.sh`, or register new hooks in `.pre-commit-config.yaml`. Keep the user's entry point name. Only mention replacement if the orchestrator is structurally hostile to new gates (see below).
+
+Two cases where you stop or ask first:
+
+1. **Everything is ✅** — every gate is present and the orchestrator passes cleanly. Report "all gates already in place" and stop. Nothing to do.
+2. **Incompatible orchestrator** — Bazel rules, a vendored CI runner that owns the lint config and forbids local invocation, a project-specific gate suite that overlaps non-trivially with this skill's (custom CGo cross-compile checks, generated-code freshness, schema-drift checks, protobuf regen, vuln scanning, license audits). Ask whether to (a) wire missing gates into that system using its native idiom, or (b) add `check.sh` + `prek` alongside as a developer-facing fast path (some duplication, stable second entry point). Don't auto-replace.
+
+Conflict cases that need a one-line confirmation before proceeding (not a "stop entirely"):
+
+- A pre-v2 `.golangci.yml` (no `version:` key, or `version: "1"`) — the v2 schema in Step 5 won't merge cleanly; ask whether to migrate or leave as-is and add missing gates outside golangci-lint.
+- An existing `tools.go` with pinned tool versions different from Step 3's `@latest` — prefer the repo's pins; don't bump versions silently.
+- CGo / build-tag setup that means `go test ./...` silently no-ops on some packages — confirm the right `GOFLAGS` / `CGO_ENABLED` invocation before generating.
 
 ## Step 3: Install dev tools
 
@@ -56,6 +74,12 @@ Go tools are installed per-user with `go install`, not as project dependencies. 
 ```text
 github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest  # meta-linter (govet, staticcheck, errcheck, unused, ineffassign, etc.)
 golang.org/x/tools/cmd/goimports@latest                        # format + import management
+```
+
+Also install `prek` — the prescribed checker entry point. It reads `.pre-commit-config.yaml`, installs git hooks, and runs the gate. `check.sh` (Step 8) is the orchestrator underneath; `prek` just wraps it.
+
+```text
+cargo install --locked prek    # or: brew install prek, pip install prek, pipx install prek
 ```
 
 As of golangci-lint v2 (2024+), `gosimple` was merged into `staticcheck` — don't list it separately anywhere, the config will fail to validate.
@@ -158,7 +182,7 @@ formatters:
 
 Notes on deliberate omissions:
 
-- **`gocyclo` / `gocognit` / `cyclop` linters are off** — they fire per-function with arbitrary thresholds and produce noise developers learn to ignore. Step 11 shows how to track per-file complexity as a tracked metric instead.
+- **`gocyclo` / `gocognit` / `cyclop` linters are off** — they fire per-function with arbitrary thresholds and produce noise developers learn to ignore. Step 12 shows how to track per-file complexity as a tracked metric instead.
 - **`funlen` / `lll` off** — function length and line length correlate poorly with defect rate. Use `max-lines`-style per-file caps in the orchestrator if you want file-size pressure.
 - **`depguard` / `gochecknoglobals` off by default** — project-specific policy, enable when the user asks.
 
@@ -206,11 +230,11 @@ gocyclo -over 15 -avg $(go list -f '{{.Dir}}' ./...)
 
 Passing package dirs from `go list` avoids walking `vendor/`, `.git/`, and other noise that a bare `.` would include.
 
-Report functions over 15; use as a signal, not a hard gate (the skill does not fail on this by default — the threshold is a judgment call). Step 11 shows a per-file tracked metric approach instead.
+Report functions over 15; use as a signal, not a hard gate (the skill does not fail on this by default — the threshold is a judgment call). Step 12 shows a per-file tracked metric approach instead.
 
 ## Step 8: Create `check.sh`
 
-A thin bash entry point that calls each gate sequentially. Fine for small/medium repos; see Step 11 for the parallel-orchestrator upgrade.
+A thin bash entry point that calls each gate sequentially. Fine for small/medium repos; see Step 12 for the parallel-orchestrator upgrade.
 
 Substitute `<GOFLAGS>` and any CGo env from Step 1. Do **not** leave the placeholders literal in the generated file.
 
@@ -336,38 +360,80 @@ echo "════════════════════════�
 
 Intentionally **not** in this default template (to avoid double-gating or fragile behavior):
 
-- **Bash file-length loop** — file size is a weak signal in Go; most large files are generated code or legitimate package-level orchestrators. Track it as a metric (Step 11) rather than a hard gate.
+- **Bash file-length loop** — file size is a weak signal in Go; most large files are generated code or legitimate package-level orchestrators. Track it as a metric (Step 12) rather than a hard gate.
 - **Coverage gate** — needs `go test -coverprofile=…` across the whole tree plus a summarizer. Making it conditional on a file existing silently no-ops when coverage wasn't generated. If you want coverage enforcement, see the reliable pattern in Step 11.
-- **`govulncheck`** — valuable but network-dependent and can flake in air-gapped CI. Add in Step 11 once the core gate is stable.
+- **`govulncheck`** — valuable but network-dependent and can flake in air-gapped CI. Add in Step 12 once the core gate is stable.
 - **Auto-creating `CLAUDE.md`** — an agent shouldn't fabricate agent docs the user didn't ask for.
 
 Make the file executable: `chmod +x check.sh`.
 
-## Step 9: Document (existing docs only)
+## Step 9: Wire up `prek`
+
+`prek` is the prescribed checker entry point — `.pre-commit-config.yaml` lets `prek` invoke `check.sh` from git hooks and from the command line under one stable interface. Even though `check.sh` runs fine on its own, route users through `prek` so the same gates fire on commit, on push, and on manual runs without three different invocations.
+
+Create `.pre-commit-config.yaml` at the repo root:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: quality-gates
+        name: Go quality gates
+        entry: ./check.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push, manual]
+```
+
+`pass_filenames: false` and `always_run: true` matter: Go gates run against `./...` (the whole module), not per-file, so we don't want `prek` to pass the staged file list to `check.sh` or skip the run when nothing Go-shaped changed.
+
+Wire to git hooks once per checkout:
+
+```bash
+prek install                          # both pre-commit and pre-push by default
+# or, if pre-commit is too slow for the full gate, push-only:
+prek install --hook-type pre-push
+```
+
+Daily invocation — `prek run --all-files` is the prescribed command:
+
+```bash
+prek run --all-files     # full sweep — the canonical entry point
+prek run                 # staged files only (fast pre-commit path)
+./check.sh               # still works; prek is just calling this
+./check.sh --fix         # auto-fix path — call check.sh directly since prek doesn't pass flags
+```
+
+For per-gate granularity (each tool as its own hook with its own file-type filter, plus separate fast and full stages), see Step 12.
+
+## Step 10: Document (existing docs only)
 
 If the repo already has `CLAUDE.md` or `AGENTS.md`, append a compact "Quality Gates" section:
 
 ```markdown
 ## Quality Gates
 
-- `./check.sh` — runs all gates (~60s)
-- `./check.sh --fix` — auto-fix + check
+- `prek run --all-files` — runs all gates (~60s) — prescribed entry point
+- `./check.sh --fix` — auto-fix path (prek doesn't pass flags through)
+- `prek install` — wire up git hooks (one-time per checkout)
 
 Gates: build · vet · goimports · golangci-lint · deadcode · dupl (+ go test if present).
 ```
 
 Do **not** create `CLAUDE.md` just to document the gates. That's agent-clutter the user didn't ask for; the `check.sh` header comment and `Makefile` are self-documenting.
 
-## Step 10: First run
+## Step 11: First run
 
-Run `./check.sh` and fix anything that comes up. Expect:
+Run `prek run --all-files` and fix anything that comes up. Expect:
 
+- `prek: command not found` — install per Step 3 (`brew install prek`, `cargo install --locked prek`, or `pip install prek`).
 - Missing tools — `goimports`, `deadcode`, `dupl` not on `$PATH`. Add `GOPATH/bin` to `$PATH` or install with `go install` as per Step 3.
 - Build failures on a fresh clone because of missing CGo env — add the flags to `check.sh`'s `export` block based on what Step 1 detected.
 - Pre-existing lint errors — fix before calling the setup done. If the volume is large, adjust `.golangci.yml` `exclusions` rather than disabling linters wholesale.
 - `deadcode` flagging large swaths of code on library-style repos that expose public API — it reports unreachable-from-`main` by default, which is wrong for libraries. Either scope the command to `./cmd/...` or switch to `unused` (weaker but library-aware).
 
-## Step 11: Advanced patterns (propose for larger repos; don't apply unprompted)
+## Step 12: Advanced patterns (propose for larger repos; don't apply unprompted)
 
 These are proven production patterns for Go monorepos and larger services. They cost setup time, so pitch them and get buy-in before applying.
 
@@ -504,6 +570,6 @@ Ask the user if they want to adjust:
 - **Complexity threshold** — default 15 report / 25 fail (via `gocyclo`).
 - **Duplication threshold** — default 50 tokens (via `dupl`).
 - **Lint strictness** — enable/disable individual linters via `.golangci.yml`.
-- **Coverage minimum** — only if adopting Step 11's coverage pattern.
+- **Coverage minimum** — only if adopting Step 12's coverage pattern.
 - **Additional gates** — `govulncheck`, generated-code freshness, cross-compile smoke.
 - **Monorepo / workspace support** — run gates per-module or from root via `go.work`.

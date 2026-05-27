@@ -50,22 +50,23 @@ from pathlib import Path
 
 CSS = r"""
 :root {
-  --bg: #f7f6f3;
+  --bg: #f6f7f8;
   --surface: #ffffff;
   --ink: #1a1a1a;
   --ink-2: #3d3d3d;
   --muted: #6b6b6b;
-  --line: #e5e3dd;
-  --line-2: #efedea;
+  --line: #e3e5e8;
+  --line-2: #edf0f2;
   --accent: #2563eb;
   --accent-soft: #eff5ff;
   --done: #15803d;
   --warn: #b45309;
   --warn-soft: #fffbeb;
-  --code-bg: #f3f1ec;
+  --code-bg: #f1f3f5;
   --date: #7c3aed;
   --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
-  --radius: 10px;
+  --radius: 8px;
+  --anchor-offset: 1rem;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -109,10 +110,6 @@ body {
   gap: 2rem;
   padding: 2rem;
 }
-@media (max-width: 920px) {
-  .layout { grid-template-columns: 1fr; padding: 1rem; gap: 1rem; }
-  nav.toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
-}
 nav.toc {
   position: sticky;
   top: 1.5rem;
@@ -121,6 +118,12 @@ nav.toc {
   overflow-y: auto;
   font-size: 0.88rem;
   padding: 1.25rem 1rem 1rem;
+}
+.toc-details > summary {
+  display: none;
+}
+.toc-body {
+  display: block;
 }
 nav.toc h2 {
   font-size: 0.7rem;
@@ -132,7 +135,7 @@ nav.toc h2 {
   font-weight: 600;
 }
 nav.toc ul { list-style: none; padding: 0; margin: 0; }
-nav.toc > ul > li { margin-bottom: 0.15rem; }
+nav.toc .toc-body > ul > li { margin-bottom: 0.15rem; }
 nav.toc ul ul { padding-left: 0; margin-top: 0.25rem; }
 nav.toc a {
   color: var(--ink-2);
@@ -176,7 +179,7 @@ main { min-width: 0; }
   font-size: 1.85rem;
   margin: 0 0 0.5rem;
   font-weight: 650;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
 }
 .hero .lede {
   margin: 0;
@@ -222,10 +225,10 @@ main { min-width: 0; }
 h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   margin: 0 0 1rem;
   border: 0;
-  scroll-margin-top: 1rem;
+  scroll-margin-top: var(--anchor-offset);
 }
 .ms-header {
   display: flex;
@@ -233,7 +236,11 @@ h2 {
   justify-content: space-between;
   gap: 1rem;
   margin: 0 0 0.4rem;
-  scroll-margin-top: 1rem;
+  scroll-margin-top: var(--anchor-offset);
+}
+section[id],
+article[id] {
+  scroll-margin-top: var(--anchor-offset);
 }
 .ms-header h2 { margin: 0; font-size: 1.2rem; }
 .ms-header .ms-num {
@@ -447,6 +454,7 @@ details.review-fold summary {
   font-size: 0.9rem;
 }
 details.review-fold summary::marker { color: var(--muted); }
+details.toc-details summary::-webkit-details-marker { display: none; }
 details.collapse { display: inline; }
 details.collapse summary {
   cursor: pointer;
@@ -490,12 +498,258 @@ details.collapse pre {
 }
 .totop.show { opacity: 1; pointer-events: auto; }
 .totop:hover { color: var(--accent); }
+
+@media (max-width: 920px) {
+  :root {
+    --anchor-offset: 72px;
+  }
+  .layout {
+    display: flex;
+    flex-direction: column;
+    padding: 0 1rem 1rem;
+    gap: 1rem;
+  }
+  nav.toc { order: 1; }
+  main { order: 2; }
+  nav.toc {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    align-self: stretch;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin: 0 -1rem;
+    padding: 0;
+  }
+  .toc-details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 48px;
+    padding: 0.72rem 1rem;
+    cursor: pointer;
+    color: var(--ink);
+    font-weight: 650;
+    list-style: none;
+  }
+  .toc-details > summary::after {
+    content: "▾";
+    color: var(--muted);
+    font-size: 0.9rem;
+    transition: transform 150ms;
+  }
+  .toc-details[open] > summary::after {
+    transform: rotate(180deg);
+  }
+  .toc-summary-main {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+  .toc-summary-label {
+    font-size: 0.92rem;
+  }
+  .toc-summary-progress {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .toc-body {
+    border-top: 1px solid var(--line-2);
+    max-height: min(62vh, 460px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.55rem 0.75rem 0.75rem;
+  }
+  nav.toc h2 { display: none; }
+  nav.toc a { padding: 0.45rem 0.55rem; }
+  nav.toc .ms-link { padding-left: 0.55rem; }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .layout {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+  nav.toc {
+    margin: -0.75rem -0.75rem 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 0;
+    font-size: 0.84rem;
+  }
+  .toc-details > summary {
+    min-height: 44px;
+    padding: 0.65rem 0.75rem;
+  }
+  .toc-body {
+    padding: 0.45rem 0.55rem 0.65rem;
+  }
+  nav.toc a {
+    gap: 0.4rem;
+    padding: 0.34rem 0.45rem;
+  }
+  nav.toc a span:first-child,
+  .task-text,
+  .goal,
+  .acceptance li {
+    overflow-wrap: anywhere;
+  }
+  nav.toc .ms-link { padding-left: 0.45rem; }
+  .hero,
+  .section {
+    box-shadow: none;
+  }
+  .hero {
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .hero h1 {
+    font-size: 1.55rem;
+    line-height: 1.18;
+    margin-bottom: 0.65rem;
+  }
+  .hero .lede {
+    font-size: 0.95rem;
+    line-height: 1.62;
+  }
+  .hero-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+  .stat { min-width: 0; }
+  .stat-label {
+    font-size: 0.64rem;
+    line-height: 1.25;
+  }
+  .stat-value {
+    font-size: 1.15rem;
+  }
+  .section {
+    padding: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+  .section.unframed { padding: 0; }
+  h2 { font-size: 1.08rem; }
+  .ms-header {
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+  .ms-header h2 {
+    font-size: 1.05rem;
+    line-height: 1.32;
+    min-width: 0;
+  }
+  .ms-header .ms-num {
+    display: block;
+    margin: 0 0 0.1rem;
+    font-size: 0.72rem;
+  }
+  .badge {
+    flex: 0 0 auto;
+    font-size: 0.68rem;
+    padding: 0.14rem 0.42rem;
+  }
+  .subhead {
+    margin-top: 1.15rem;
+    letter-spacing: 0.08em;
+  }
+  .acceptance ul { gap: 0.4rem; }
+  .acceptance li {
+    padding: 0.55rem 0.65rem 0.55rem 1.75rem;
+    font-size: 0.9rem;
+  }
+  .acceptance li::before {
+    left: 0.6rem;
+    top: 0.55rem;
+  }
+  .checklist li {
+    column-gap: 0.55rem;
+    padding: 0.42rem 0.25rem;
+  }
+  .timeline li {
+    padding-left: 1.6rem;
+  }
+  .timeline .date {
+    display: block;
+    width: fit-content;
+    margin: 0 0 0.2rem;
+  }
+  pre {
+    padding: 0.75rem;
+  }
+  code {
+    font-size: 0.82em;
+  }
+  .totop {
+    right: 0.85rem;
+    bottom: 0.85rem;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 360px) {
+  .layout { padding: 0.5rem; }
+  nav.toc { margin: -0.5rem -0.5rem 0; }
+  .hero { padding: 1rem; }
+  .section { padding: 0.95rem; }
+  .hero-meta { grid-template-columns: 1fr; }
+  .ms-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
 """
 
 JS = r"""
 const totop = document.getElementById('totop');
 window.addEventListener('scroll', () => {
   totop.classList.toggle('show', window.scrollY > 500);
+});
+
+const tocDetails = document.querySelector('.toc-details');
+const narrowToc = window.matchMedia('(max-width: 920px)');
+function syncTocMode(event) {
+  if (!tocDetails) return;
+  tocDetails.open = !event.matches;
+}
+syncTocMode(narrowToc);
+narrowToc.addEventListener('change', syncTocMode);
+document.querySelectorAll('.toc-body a').forEach((link) => {
+  link.addEventListener('click', (event) => {
+    if (!tocDetails || !narrowToc.matches) return;
+    const hash = link.getAttribute('href') || '';
+    if (!hash.startsWith('#')) {
+      tocDetails.open = false;
+      return;
+    }
+    const target = document.querySelector(hash);
+    if (!target) {
+      tocDetails.open = false;
+      return;
+    }
+    event.preventDefault();
+    tocDetails.open = false;
+    requestAnimationFrame(() => {
+      target.scrollIntoView();
+      history.pushState(null, '', hash);
+    });
+  });
 });
 
 function updateProgress() {
@@ -538,9 +792,13 @@ function updateProgress() {
   const totalPercent = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
   const statusCount = document.querySelectorAll('#status .timeline li').length;
 
-  document.querySelector('[data-total-progress]').textContent = `${doneTasks}/${totalTasks}`;
-  document.querySelector('[data-total-progress]').classList.toggle('done', doneTasks === totalTasks && totalTasks > 0);
-  document.querySelector('[data-status-count]').textContent = String(statusCount);
+  document.querySelectorAll('[data-total-progress]').forEach((el) => {
+    el.textContent = `${doneTasks}/${totalTasks}`;
+    el.classList.toggle('done', doneTasks === totalTasks && totalTasks > 0);
+  });
+  document.querySelectorAll('[data-status-count]').forEach((el) => {
+    el.textContent = String(statusCount);
+  });
 
   document.querySelector('[data-stat="milestones"]').textContent = `${doneMilestones} / ${milestones.length}`;
   document.querySelector('[data-stat="tasks"]').textContent = `${doneTasks} / ${totalTasks}`;
@@ -824,16 +1082,26 @@ def render_html(plan: dict) -> str:
 <a class="skip-link" href="#main">Skip to main content</a>
 <div class="layout">
 <nav class="toc">
-  <h2>Contents</h2>
-  <ul>
-    <li><a href="#status"><span>Status</span><span class="toc-progress" data-status-count>{status_count}</span></a></li>
-    <li><a href="#milestones"><span>Milestones</span><span class="toc-progress" data-total-progress>{done}/{total}</span></a></li>
-    <li>
+  <details class="toc-details" open>
+    <summary>
+      <span class="toc-summary-main">
+        <span class="toc-summary-label">Contents</span>
+        <span class="toc-summary-progress" data-total-progress>{done}/{total}</span>
+      </span>
+    </summary>
+    <div class="toc-body">
+      <h2>Contents</h2>
       <ul>
-        {"".join(toc_milestones)}
+        <li><a href="#status"><span>Status</span><span class="toc-progress" data-status-count>{status_count}</span></a></li>
+        <li><a href="#milestones"><span>Milestones</span><span class="toc-progress" data-total-progress>{done}/{total}</span></a></li>
+        <li>
+          <ul>
+            {"".join(toc_milestones)}
+          </ul>
+        </li>
       </ul>
-    </li>
-  </ul>
+    </div>
+  </details>
 </nav>
 <main id="main">
 

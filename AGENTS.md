@@ -7,6 +7,8 @@ This is a collection of agent skills. Each skill is in `skills/{skill-name}/SKIL
 - **typeql** - TypeQL language reference for TypeDB 3.8+. Schema definition, CRUD, queries, functions, and pitfalls.
 - **type-bridge** - Python ORM for TypeDB. Entities, relations, attributes, CRUD, queries, expressions, schema management.
 - **ai-testing** - Guidelines for writing robust tests. Test design, assertions, mocking, debugging strategies.
+- **design-docs** - Write design-only architecture, API, framework, or contract documents before implementation planning.
+- **execution-plans** - Write requested implementation plans, milestone checklists, execution trackers, and handoff plans from accepted designs.
 - **fowler-refactoring** - A practical, task-oriented implementation of Martin Fowler's refactoring approach, used when improving design without changing behavior.
 - **go-modern-review** - Review and refactor Go code for Go 1.25 and 1.26 features, new language/stdlib APIs, `go fix` workflows, and newly deprecated or tightened behaviors.
 - **surrealdb** - SurrealDB documentation router. Covers SurrealDB core concepts, SurrealQL, schema design, security, deployment, SDKs, SurrealDB Cloud, Surrealist, integrations, and tutorials.

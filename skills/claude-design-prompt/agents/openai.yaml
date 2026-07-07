@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude Design Prompt"
+  short_description: "Write domain-faithful prompts for Claude Design UI prototypes."
+  default_prompt: "Use this skill to draft or improve a Claude Design prompt for a UI prototype. Include domain rules, target screen state, negative constraints, interaction semantics, and review checks."

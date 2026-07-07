@@ -171,10 +171,22 @@ Template — adapt the package runner (`uv run` / `python -m` / `poetry run`), s
 ```bash
 #!/usr/bin/env bash
 # Code quality gates — run before pushing.
-# Usage: ./check.sh [--fix]
+# Usage: ./check.sh [--fix] [--fast]
+#   --fix    apply safe auto-fixes (ruff lint + format)
+#   --fast   run only the cheap checks (lint, format, file length) and skip the
+#            slow whole-project gates (type check, tests, coverage, radon,
+#            vulture, pylint). The pre-commit hook calls this so commits stay
+#            fast; the full gate runs on pre-push. See Step 7.
 set -euo pipefail
 
-FIX="${1:-}"
+FIX=""
+FAST=""
+for arg in "$@"; do
+  case "$arg" in
+    --fix)  FIX="--fix" ;;
+    --fast) FAST="1" ;;
+  esac
+done
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
@@ -216,39 +228,8 @@ else
   run_gate "Python: ruff format" $RUN ruff format --check "$SRC_DIR"
 fi
 
-# ── Python: type check ───────────────────────────────────────────────────────
-
-run_gate "Python: type check" $RUN ty check "$SRC_DIR"
-
-# ── Python: tests + coverage ─────────────────────────────────────────────────
-
-run_gate "Python: pytest + coverage" $RUN pytest "$SRC_DIR" -q --cov="$SRC_DIR" --cov-report=json
-
-# ── Python: per-file coverage ────────────────────────────────────────────────
-
-if [ -f "coverage.json" ]; then
-  echo ""
-  echo "▶  Python: per-file coverage (min 30%)"
-  if ! $RUN python -c "
-import json, sys
-with open('coverage.json') as f:
-    data = json.load(f)
-fails = []
-for path, info in sorted(data['files'].items()):
-    pct = info['summary']['percent_covered']
-    if pct < 30:
-        fails.append((path, pct))
-if fails:
-    for path, pct in fails:
-        print(f'  {path}: {pct:.1f}% (min 30%)')
-    print(f'  {len(fails)} file(s) below 30% coverage')
-    sys.exit(1)
-"; then
-    FAILED+=("Python: per-file coverage (min 30%)")
-  fi
-fi
-
 # ── Python: file length ──────────────────────────────────────────────────────
+# Cheap (line counting) — always runs, including in --fast mode.
 
 echo ""
 echo "▶  Python: file length (max 500 lines)"
@@ -265,28 +246,62 @@ if [ "$PY_OVER" -gt 0 ]; then
   FAILED+=("Python: file length (max 500 lines)")
 fi
 
-# ── Python: cyclomatic complexity ─────────────────────────────────────────────
+# ── Slow gates: skipped by --fast (pre-commit), run on pre-push ──────────────
+# Type check, tests, coverage, complexity, dead-code and duplication all scan
+# the whole project, so they're too slow for every commit. The pre-commit hook
+# runs `check.sh --fast` (lint + format + file length above); the pre-push hook
+# runs the full gate below. See Step 7.
+if [ -z "$FAST" ]; then
 
-# Grade C or worse = fail. Show only B+ for awareness, fail on C+.
-run_gate "Python: cyclomatic complexity (radon cc)" $RUN radon cc "$SRC_DIR" -a -nc
+  # ── Python: type check ─────────────────────────────────────────────────────
+  run_gate "Python: type check" $RUN ty check "$SRC_DIR"
 
-# ── Python: maintainability index ─────────────────────────────────────────────
+  # ── Python: tests + coverage ───────────────────────────────────────────────
+  run_gate "Python: pytest + coverage" $RUN pytest "$SRC_DIR" -q --cov="$SRC_DIR" --cov-report=json
 
-# Show files with MI below B grade (< 20).
-run_gate "Python: maintainability index (radon mi)" $RUN radon mi "$SRC_DIR" -nb
+  # ── Python: per-file coverage ──────────────────────────────────────────────
+  if [ -f "coverage.json" ]; then
+    echo ""
+    echo "▶  Python: per-file coverage (min 30%)"
+    if ! $RUN python -c "
+import json, sys
+with open('coverage.json') as f:
+    data = json.load(f)
+fails = []
+for path, info in sorted(data['files'].items()):
+    pct = info['summary']['percent_covered']
+    if pct < 30:
+        fails.append((path, pct))
+if fails:
+    for path, pct in fails:
+        print(f'  {path}: {pct:.1f}% (min 30%)')
+    print(f'  {len(fails)} file(s) below 30% coverage')
+    sys.exit(1)
+"; then
+      FAILED+=("Python: per-file coverage (min 30%)")
+    fi
+  fi
 
-# ── Python: dead code detection ───────────────────────────────────────────────
+  # ── Python: cyclomatic complexity ──────────────────────────────────────────
+  # Grade C or worse = fail. Show only B+ for awareness, fail on C+.
+  run_gate "Python: cyclomatic complexity (radon cc)" $RUN radon cc "$SRC_DIR" -a -nc
 
-run_gate "Python: dead code detection (vulture)" $RUN vulture "$SRC_DIR" --min-confidence 80
+  # ── Python: maintainability index ──────────────────────────────────────────
+  # Show files with MI below B grade (< 20).
+  run_gate "Python: maintainability index (radon mi)" $RUN radon mi "$SRC_DIR" -nb
 
-# ── Python: duplicate code ────────────────────────────────────────────────────
+  # ── Python: dead code detection ────────────────────────────────────────────
+  run_gate "Python: dead code detection (vulture)" $RUN vulture "$SRC_DIR" --min-confidence 80
 
-run_gate "Python: duplicate detection (pylint R0801)" $RUN pylint "$SRC_DIR" \
-  --ignore=tests \
-  --disable=all \
-  --enable=duplicate-code \
-  --min-similarity-lines=12 \
-  --score=n
+  # ── Python: duplicate code ─────────────────────────────────────────────────
+  run_gate "Python: duplicate detection (pylint R0801)" $RUN pylint "$SRC_DIR" \
+    --ignore=tests \
+    --disable=all \
+    --enable=duplicate-code \
+    --min-similarity-lines=12 \
+    --score=n
+
+fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 
@@ -314,45 +329,60 @@ echo "════════════════════════�
 
 `prek` is the prescribed checker entry point — `.pre-commit-config.yaml` lets `prek` invoke `check.sh` from git hooks and from the command line under one stable interface. Even though `check.sh` runs fine on its own, route users through `prek` so the same gates fire on commit, on push, and on manual runs without three different invocations.
 
+**Split the gate by stage.** Do _not_ run the full gate on every commit — pytest, coverage, radon, vulture and pylint all scan the whole project and turn a commit into a multi-second (or multi-minute) wait. Developers respond by disabling hooks (`--no-verify`), and then the gate catches nothing until CI. Instead:
+
+- **pre-commit** runs `check.sh --fast` — lint + format + file length. Sub-second, so it never tempts a bypass, and it catches the cheap-to-fix problems (a file creeping over the length cap, an import-order slip) _continuously_, the moment they're introduced — not as a surprise wall of work at push time.
+- **pre-push** runs the full `check.sh` — the last gate before CI, where the slow whole-project checks belong.
+
 Create `.pre-commit-config.yaml` at the repo root:
 
 ```yaml
 repos:
   - repo: local
     hooks:
+      # Fast checks — every commit. Cheap enough to never tempt --no-verify.
+      - id: quality-gates-fast
+        name: Python quality gates (fast)
+        entry: ./check.sh --fast
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # Full gate — on push, the last stop before CI. Tests, coverage,
+      # complexity, dead-code, duplication.
       - id: quality-gates
-        name: Python quality gates
+        name: Python quality gates (full)
         entry: ./check.sh
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-commit, pre-push, manual]
+        stages: [pre-push, manual]
 ```
 
-`pass_filenames: false` and `always_run: true` matter: pytest, coverage, vulture, and pylint duplicate-detection scan the whole project, not a per-file slice.
+`pass_filenames: false` and `always_run: true` matter on both hooks: the gates scan the whole project, not a per-file slice, so prek must not append a filename list.
 
 Heads-up: the Python ecosystem already has a popular tool called `pre-commit` (the original, written in Python). `prek` is a faster Rust reimplementation that reads the same `.pre-commit-config.yaml`. If the repo already uses `pre-commit`, either swap it for `prek` (drop-in) or let `pre-commit` keep driving — both consume the same config. Don't run both.
 
-Wire to git hooks once per checkout:
+Wire to git hooks once per checkout. Both hook types must be installed — `prek install` alone installs only `pre-commit`, so the pre-push full gate would silently never fire:
 
 ```bash
-prek install                          # both pre-commit and pre-push by default
-# or, if pre-commit is too slow for the full gate, push-only:
-prek install --hook-type pre-push
+prek install --hook-type pre-commit --hook-type pre-push
 ```
 
-Daily invocation — `prek run --all-files` is the prescribed command:
+Daily invocation. Note `prek run --all-files` runs only the **pre-commit stage** (the fast hook); the full gate lives on the pre-push stage, so run `check.sh` directly (or target the stage) for a full sweep:
 
 ```bash
-prek run --all-files     # full sweep — the canonical entry point
-prek run                 # staged files only (fast pre-commit path)
-./check.sh               # still works; prek is just calling this
-./check.sh --fix         # auto-fix path — call check.sh directly since prek doesn't pass flags
+./check.sh                                  # full sweep — the canonical entry point
+./check.sh --fix                            # auto-fix path (ruff lint + format)
+./check.sh --fast                           # what the pre-commit hook runs
+prek run --all-files                        # fast hook over all files (pre-commit stage)
+prek run --all-files --hook-stage pre-push  # full gate over all files
 ```
 
 ## Step 8: Add to CLAUDE.md
 
-If a `CLAUDE.md` exists in the repo, append a "Quality Gates" section with three commands: `prek run --all-files` (prescribed checker), `./check.sh --fix` (fix path), and `prek install` (one-time hook setup). If no `CLAUDE.md` exists, create one with this section plus basic commands.
+If a `CLAUDE.md` exists in the repo, append a "Quality Gates" section with: `./check.sh` (full sweep), `./check.sh --fix` (fix path), and the one-time hook setup `prek install --hook-type pre-commit --hook-type pre-push`. Note that the fast subset runs on every commit and the full gate runs on push. If no `CLAUDE.md` exists, create one with this section plus basic commands.
 
 ## Step 9: Run it
 
@@ -375,3 +405,13 @@ Ask the user if they want to adjust:
 - **Vulture confidence** — default 80%, lower catches more but more false positives
 - **Duplicate threshold** — default 12 similar lines, adjust for legacy codebases
 - **Additional gates** — bandit (security), import sorting strictness, docstring coverage
+
+### Large existing codebases: ratchet instead of big-bang
+
+On a large repo with years of accumulated violations, turning every gate to blocking at once produces an unreviewable mechanical diff and a wall of failures that stalls the rollout. Ratchet instead:
+
+- **Per-family lint flip.** Keep `check.sh`'s blocking lint to the families already clean; run the rest warn-only (`ruff check --statistics`, exit status ignored) so the team sees the backlog without being blocked. Flip one family to blocking per follow-up PR, each landing its own auto-fix.
+- **File-length baseline.** Instead of capping every file, record current oversized files in a baseline (e.g. `.quality/file-length-baseline.json`) that may only _shrink_; enforce the cap only on new/changed files. New code meets the bar; legacy code converges as it's touched.
+- **A second, stricter per-file script.** A `lint-strict.sh <files>` that applies the _destination_ ruleset to just the files a PR adds or rewrites lets new code meet the final bar voluntarily, file-by-file, without forcing the whole repo there in one PR.
+
+The split-stage wiring above still applies — the ratcheted subset is what `--fast`/pre-commit and the full pre-push gate enforce _today_; the warn-only preview shows what's coming.

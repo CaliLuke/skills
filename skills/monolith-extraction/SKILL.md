@@ -273,12 +273,21 @@ constraint often does not apply.
 **Never hand-write the design from source.** A careful transcription of a real DTO set will differ
 from the running service in dozens of ways, and you will find them one at a time.
 
+0. **Before deciding the contract does not exist, look for the flag that hides it.** A published
+   document that covers a fraction of the endpoints usually means a filter, not an absence. In this
+   monolith it was one property, `documentation.show-internal-endpoints=false`. Flip it locally and
+   the generator emits everything. This is the difference between importing a whole unit and
+   transcribing two-thirds of it by hand.
 1. Slice the published document to your endpoints, with the transitive schema closure. Redocly CLI
    `split`, or a script.
 2. Import it into whatever design format your generator uses.
 3. Add by hand only what the importer refuses, and write down each one.
 4. **Diff the generated document against the incumbent immediately**, before the design feels
    finished. That first diff is where transcription errors surface.
+
+An endpoint you author by hand has no incumbent to diff against, so it skips step 4 entirely. Worse,
+if you later generate test inputs from this contract, an enum you forgot is never sent. **Authoring
+errors are invisible to the test meant to catch them.** Import first, always.
 
 ### Rule 6: Diff against a baseline to catch regressions; diff against the incumbent to classify
 
@@ -362,7 +371,25 @@ The extraction is not done until the original code is gone. This is the step tha
 
 ## Phase 6 — Prove it
 
-### Rule 11: Verify before asserting, every time
+### Rule 11: A differential test compares what was written, not only what was returned
+
+Running the same input through both implementations and diffing the response is half a test. If the
+code under extraction writes anything — a shared aggregate, a score, an audit event, a Kafka
+message — two implementations can return byte-identical bodies and leave different data behind.
+
+Compare three things: response, resulting state, emitted events. Reset to a known seed between
+runs and dump the touched collections.
+
+Two traps:
+
+- **Normalize by field name, never structurally.** Sorting arrays before diffing hides sort-order
+  bugs, which is one of the defects this method is best at catching.
+- **Assert a positive control.** Without valid credentials every request returns 401 from both
+  sides and the run reports perfect agreement over nothing. Require at least one success per
+  operation on both sides, or declare the run void. A confident empty result is worse than no
+  result.
+
+### Rule 12: Verify before asserting, every time
 
 The recurring failure mode is stating a cause that sounds right. Examples that were wrong:
 
@@ -374,13 +401,13 @@ The recurring failure mode is stating a cause that sounds right. Examples that w
 Before writing a causal claim in a document, message or commit, open the file that proves it. If
 you cannot, write what you observed rather than why.
 
-### Rule 12: Say which mechanism found each defect
+### Rule 13: Say which mechanism found each defect
 
 When reporting, attribute every bug to the thing that caught it: the generated document, a test,
 the compiler, or a person reading. This is the difference between a claim and evidence, and it
 also shows which mechanisms are earning their place.
 
-### Rule 13: Name the numbers you did not measure
+### Rule 14: Name the numbers you did not measure
 
 An estimate and a measurement look identical in a table. Mark them. A regex scan and a bytecode
 analysis of the same rule disagreed by 20% in both directions, and only one of them is worth

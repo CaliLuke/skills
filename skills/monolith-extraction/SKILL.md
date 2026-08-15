@@ -54,7 +54,7 @@ nothing useful. A domain that is genuinely clean does not exist in a real monoli
 the new service and the old one is acceptable; more code can move later. The interesting finding is
 usually on the far side of the thing that looked too hard.
 
-If a constraint appears to block you, read the code before believing it. See Rule 4.
+If a constraint appears to block you, read the code before believing it. See Rule 5.
 
 ### Stop applying enterprise procurement thinking
 
@@ -230,7 +230,21 @@ service, and compute something that changes its own response shape. A cluster wh
 clean and whose writes span aggregates is a read extraction, not a service extraction. Both are
 useful. They are different plans.
 
-### Rule 3: Writes delete cleanly. Reads leave a stump.
+### Rule 3: The default is that it moves. Price what you leave behind.
+
+The instinct to leave shared code in the monolith is the main way this exercise produces nothing.
+A service with many consumers is not immovable. It means the consumers change, or they call the
+new service. Both are work, and work is not a blocker.
+
+Only one thing genuinely keeps code in place: moving it would drag in another whole domain. When
+that happens, **write down what moving it would take.** "It has 23 consumers" is not a finding.
+"Moving it costs 23 call sites and puts a network hop in the scoring path, so it is a second cut"
+is a finding, and it is the one the architecture owner can act on.
+
+The first run called a 23-consumer service immovable without pricing it. That was timid, and the
+estimate was the more useful output.
+
+### Rule 4: Writes delete cleanly. Reads leave a stump.
 
 A write endpoint is usually the only thing performing its write, so its service has one caller and
 deletes whole. A read is a projection, and projections get reused by whatever else renders the
@@ -246,7 +260,7 @@ If a read service has many callers, extracting the endpoint **forks** the projec
 moving it. Either extract every consumer in the same cut, or make the monolith call the new
 service and delete the local implementation. Do not leave two copies.
 
-### Rule 4: A rule that ends an investigation has been misapplied
+### Rule 5: A rule that ends an investigation has been misapplied
 
 Repo rules bound what you may change. They do not bound what you may investigate. If a constraint
 appears to make an endpoint unextractable, read the actual code path before accepting it. The
@@ -266,7 +280,7 @@ from the running service in dozens of ways, and you will find them one at a time
 4. **Diff the generated document against the incumbent immediately**, before the design feels
    finished. That first diff is where transcription errors surface.
 
-### Rule 5: Diff against a baseline to catch regressions; diff against the incumbent to classify
+### Rule 6: Diff against a baseline to catch regressions; diff against the incumbent to classify
 
 Zero differences is the right target against a **fixed baseline**, where any change is a
 regression. It is the wrong target against the **incumbent**, where some differences mean your
@@ -280,7 +294,7 @@ waivers file.
 
 ## Phase 3 — Read the code you are porting
 
-### Rule 6: Names are claims. Verify them.
+### Rule 7: Names are claims. Verify them.
 
 Confirmed liars are common. Before trusting a name, scan for the pattern:
 
@@ -297,18 +311,18 @@ The triage output is not always a rename. A read that writes an audit event is n
 uncacheable, so moving the write to the caller may be the honest fix. A rule cannot make that call.
 It forces the question.
 
-### Rule 7: Port the layer below the one you are reading
+### Rule 8: Port the layer below the one you are reading
 
 Open every method that returns a collection, however plain its name. A finder that filters is
 invisible from its call site.
 
-### Rule 8: Wire names are not field names
+### Rule 9: Wire names are not field names
 
 Hand-written getters override the field name Jackson serializes. A class can declare `mAdminArea`
 and serialize `getmAdminArea`. **No file contains the string that goes on the wire.** Verify field
 names against a generated document or a recorded response, never against the DTO alone.
 
-### Rule 9: Two endpoints over one store are not one behaviour with two shapes
+### Rule 10: Two endpoints over one store are not one behaviour with two shapes
 
 Diff their read paths explicitly: sort order, filters, masking, error semantics, pagination. A
 list and a single read of the same rows commonly differ in sort direction alone.
@@ -348,7 +362,7 @@ The extraction is not done until the original code is gone. This is the step tha
 
 ## Phase 6 — Prove it
 
-### Rule 10: Verify before asserting, every time
+### Rule 11: Verify before asserting, every time
 
 The recurring failure mode is stating a cause that sounds right. Examples that were wrong:
 
@@ -360,13 +374,13 @@ The recurring failure mode is stating a cause that sounds right. Examples that w
 Before writing a causal claim in a document, message or commit, open the file that proves it. If
 you cannot, write what you observed rather than why.
 
-### Rule 11: Say which mechanism found each defect
+### Rule 12: Say which mechanism found each defect
 
 When reporting, attribute every bug to the thing that caught it: the generated document, a test,
 the compiler, or a person reading. This is the difference between a claim and evidence, and it
 also shows which mechanisms are earning their place.
 
-### Rule 12: Name the numbers you did not measure
+### Rule 13: Name the numbers you did not measure
 
 An estimate and a measurement look identical in a table. Mark them. A regex scan and a bytecode
 analysis of the same rule disagreed by 20% in both directions, and only one of them is worth
@@ -451,6 +465,7 @@ delivering.
 | Drive incumbent differences to zero | Classify them and keep the ones where you are right |
 | Trust a method name | Verify it, then freeze an ArchUnit rule |
 | Leave a forked projection in both languages | Make the monolith call the new service |
+| Leave code behind because it has many consumers | Default to moving. If it stays, price the move. |
 | Write a rule in a document and rely on it | Write the check that fails the build |
 | Add a constraint the incumbent lacks | It rejects traffic the incumbent accepts |
 | Assert a cause you have not read | Open the file, or write only what you observed |

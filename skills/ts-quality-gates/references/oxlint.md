@@ -46,7 +46,21 @@ The default native plugins are `eslint`, `typescript`, `unicorn`, and `oxc`. If 
 
 ## Use one typed pass
 
-Configure:
+For a gate with separate fast and full modes, keep the root configuration syntax-only and enable both typed features on the full command:
+
+```text
+oxlint --type-aware --type-check --deny-warnings
+```
+
+Oxlint and `tsgolint` share the TypeScript programs between type-aware rules and compiler diagnostics. The fast command remains:
+
+```text
+oxlint --deny-warnings
+```
+
+Do not use `--type-aware=false` or `--type-check=false`; current Oxlint does not accept those arguments.
+
+If the repository has no syntax-only fast mode and every Oxlint invocation should be typed, configure the root instead:
 
 ```jsonc
 {
@@ -57,7 +71,7 @@ Configure:
 }
 ```
 
-This configuration shares TypeScript programs between native linting, type-aware rules, and compiler diagnostics.
+The `typeAware` and `typeCheck` options can only appear in the root configuration. CLI flags can enable them but cannot disable root-enabled modes.
 
 Type-aware mode enables high-signal correctness rules by default. Add explicit rules only to define additional policy.
 
@@ -129,6 +143,7 @@ Use these commands through the detected package manager:
 
 ```text
 oxlint --deny-warnings
+oxlint --type-aware --type-check --deny-warnings
 oxlint --fix
 oxlint --print-config src/example.ts
 oxlint --debug timings

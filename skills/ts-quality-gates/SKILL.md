@@ -11,7 +11,7 @@ description: >-
 
 Build a fast, repo-native gate. Use `prek run --all-files --group full` as the canonical local command.
 
-Use Oxlint for all lint rules. Do not add an ESLint invocation. Use one Oxlint program for lint and type diagnostics.
+Use Oxlint for all lint rules. Do not add an ESLint invocation. In the full gate, use one Oxlint program for lint and type diagnostics.
 
 Read these references as needed:
 
@@ -46,8 +46,8 @@ Report a compact table with `working`, `missing`, `broken`, or `not applicable` 
 | --- | --- |
 | TypeScript 7 compatibility | Native `tsc` can load every production `tsconfig` without removed options |
 | Oxlint baseline | Oxlint configuration and script run successfully with warnings enforced |
-| Type-aware lint | `oxlint-tsgolint` is installed and `options.typeAware` is enabled |
-| Type diagnostics | `options.typeCheck` is enabled, or an explicit native/framework type-check command runs |
+| Type-aware lint | `oxlint-tsgolint@7` is installed and the full Oxlint command enables type-aware mode |
+| Type diagnostics | The full Oxlint command enables type checking, or an explicit native/framework checker covers additional semantics |
 | Build/emit | Required only when the repo emits JS/declarations or validates project references |
 | Formatting | Existing formatter has a non-mutating check command |
 | Dead code | Knip runs from the canonical gate with reviewed entry points |
@@ -91,7 +91,7 @@ Keep explicit compiler options that communicate runtime intent. A matching TypeS
 Add the core project tools as development dependencies with the detected package manager:
 
 ```text
-oxlint oxlint-tsgolint knip jscpd
+typescript@^7 oxlint oxlint-tsgolint@7 knip jscpd
 ```
 
 If a formatter exists, keep it. If no formatter exists, add Prettier.
@@ -105,13 +105,15 @@ brew install prek
 # alternatives: uv tool install prek, pipx install prek, cargo binstall prek
 ```
 
+If compiler-API consumers require the TypeScript 6 compatibility package, use the package layout from [references/typescript-7.md](references/typescript-7.md) instead of installing only `typescript@^7`.
+
 Use a version of `oxlint-tsgolint` that tracks the repository's TypeScript 7 release. Do not blindly update one without the other.
 
 ## 6. Configure Oxlint as the only linter
 
 For a new setup, create `.oxlintrc.json` or `oxlint.config.ts`. If the runtime cannot execute TypeScript files, use JSON.
 
-Start with Oxlint correctness defaults. Enable type-aware linting and compiler diagnostics at the root. Add only high-signal policy rules.
+Start with Oxlint correctness defaults. Add only high-signal policy rules. Keep the root configuration syntax-only when the repository has separate fast and full gates; enable type-aware linting and compiler diagnostics on the full command.
 
 ```jsonc
 {
@@ -121,10 +123,6 @@ Start with Oxlint correctness defaults. Enable type-aware linting and compiler d
     "correctness": "error",
     "suspicious": "warn",
     "perf": "warn"
-  },
-  "options": {
-    "typeAware": true,
-    "typeCheck": true
   },
   "rules": {
     "typescript/no-floating-promises": "error",
@@ -142,7 +140,7 @@ Adapt the configuration to the project:
 - If the repository uses a built-in plugin, enable it.
 - If an existing plugin rule is not native, use `jsPlugins`. Keep its package. Do not keep the ESLint runner.
 - Add overrides for tests, scripts, configuration files, generated code, and framework files.
-- Fail CI warnings with `oxlint --deny-warnings`. Do not accumulate permanent warning noise.
+- Run the full pass with `oxlint --type-aware --type-check --deny-warnings`. Fail CI warnings; do not accumulate permanent warning noise.
 - Use `oxlint --print-config path/to/file.ts` to verify representative files and `oxlint --debug timings` to investigate slow type-aware rules.
 
 If an ESLint flat configuration exists, run `@oxlint/migrate --type-aware`. Review each migrated rule and override.
@@ -151,9 +149,9 @@ Remove ESLint only after Oxlint reproduces the policy. Report each unsupported p
 
 ## 7. Avoid duplicate type checking
 
-Use `options.typeAware: true` and `options.typeCheck: true` as the default application gate.
+Run `oxlint --type-aware --type-check --deny-warnings` as the default full application gate. Oxlint and `tsgolint` then share one TypeScript program for typed rules and compiler diagnostics.
 
-Oxlint and `tsgolint` then share one TypeScript program. This program supplies typed rules and compiler diagnostics.
+If every Oxlint invocation should be typed, the root configuration can instead set `options.typeAware: true` and `options.typeCheck: true`. Do not use that configuration for a fast/full split: current Oxlint can enable these modes from the CLI but cannot disable them with `--type-aware=false` or `--type-check=false`.
 
 If a separate checker validates additional semantics, add it. Use one of these cases:
 

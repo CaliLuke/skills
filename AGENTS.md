@@ -12,7 +12,7 @@ This is a collection of agent skills. Each skill is in `skills/{skill-name}/SKIL
 - **fowler-refactoring** - A practical, task-oriented implementation of Martin Fowler's refactoring approach, used when improving design without changing behavior.
 - **go-modern-review** - Review and refactor Go code for Go 1.25 and 1.26 features, new language/stdlib APIs, `go fix` workflows, and newly deprecated or tightened behaviors.
 - **surrealdb** - SurrealDB documentation router. Covers SurrealDB core concepts, SurrealQL, schema design, security, deployment, SDKs, SurrealDB Cloud, Surrealist, integrations, and tutorials.
-- **ts-quality-gates** - Set up TypeScript quality gates (typecheck, ESLint, Prettier, duplicates, dead code, file length) in any TS repo, wired through `prek` with a `check.sh` orchestrator.
+- **ts-quality-gates** - Set up TypeScript 7 quality gates with Oxlint linting and type diagnostics, formatting, duplicates, dead code, coverage, and `prek` orchestration.
 - **go-quality-gates** - Set up Go quality gates (build, vet, golangci-lint, goimports, duplicates, dead code, complexity, mod tidy drift, coverage) in any Go repo, wired through `prek` with a `check.sh` orchestrator.
 - **py-quality-gates** - Set up Python quality gates (ruff lint/format, type checking, pytest + coverage, complexity, dead code, duplicates, file length) in any Python repo, wired through `prek` with a `check.sh` orchestrator.
 - **rust-quality-gates** - Set up Rust quality gates (cargo check/build, clippy, rustfmt, dead code, unused deps, doc build) in any Rust repo, wired through `prek` with a `check.sh` orchestrator.

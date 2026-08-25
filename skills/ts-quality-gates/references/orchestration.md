@@ -25,8 +25,8 @@ Adapt names and commands to the detected package manager and existing convention
 ```json
 {
   "scripts": {
-    "lint": "oxlint --deny-warnings",
-    "lint:fast": "oxlint --type-aware=false --type-check=false --deny-warnings",
+    "lint": "oxlint --type-aware --type-check --deny-warnings",
+    "lint:fast": "oxlint --deny-warnings",
     "lint:fix": "oxlint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -41,7 +41,7 @@ Adapt names and commands to the detected package manager and existing convention
 
 Adapt `test:coverage` to the established test runner. Copy the skill's `scripts/check-coverage-ratchet.mjs` to the shown repository path, or preserve an equivalent existing ratchet.
 
-If Oxlint provides all type diagnostics, do not add a separate typecheck script. Add build or framework scripts only for additional semantics.
+Keep the root Oxlint configuration syntax-only for this fast/full split. Oxlint currently has enabling flags for type-aware linting and type checking, but no CLI flags that disable root-enabled modes. If Oxlint provides all type diagnostics, do not add a separate typecheck script. Add build or framework scripts only for additional semantics.
 
 Use the correct script/binary forms consistently:
 

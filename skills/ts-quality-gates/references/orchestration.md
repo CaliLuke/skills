@@ -188,6 +188,64 @@ Install only one hook manager. If Husky is canonical, let Husky invoke the check
 
 Do not run `prek install` for the same hook types.
 
+### A mutating pre-commit stage must stage what it rewrites
+
+The split above keeps pre-commit non-mutating, which sidesteps this. If a
+repository instead runs the fixer at pre-commit — `./check.sh --fix`, `oxlint
+--fix`, a formatter write — then every commit that trips a formatter fails with
+`files were modified by this hook` and has to be retyped. Prek compares the
+unstaged diff before and after a hook, so a hook that rewrites a file and leaves
+it unstaged always looks like a failure, even though the gate itself passed.
+
+Staging the rewrites closes that diff and the commit proceeds on the first
+attempt. Run the fixer through a wrapper rather than putting the logic in
+`entry:`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+./check.sh --fix
+
+rewritten="$(git diff --name-only)"
+[[ -n "$rewritten" ]] || exit 0
+
+count="$(grep -c '' <<<"$rewritten")"
+if [[ -n "${GIT_INDEX_FILE:-}" ]]; then
+  git add -u
+  printf '\n  auto-staged %s file(s) rewritten by --fix:\n' "$count"
+else
+  printf '\n  %s file(s) rewritten by --fix (not staged):\n' "$count"
+fi
+sed 's/^/    /' <<<"$rewritten"
+```
+
+Three things are load-bearing:
+
+- **Gate on `GIT_INDEX_FILE`, not `PRE_COMMIT`.** The same hook also runs under
+  a bare `prek run --all-files`, where nothing is stashed — there `git add -u`
+  would sweep the developer's unrelated working-tree edits into the index. Git
+  exports `GIT_INDEX_FILE` only when it runs a hook, so it separates the two
+  modes; prek sets `PRE_COMMIT=1` in both and cannot. Measured inside a commit:
+  `PRE_COMMIT=1 GIT_INDEX_FILE=.git/index`.
+- **`git add -u`, never `git add -A`.** Updates tracked files only, so build
+  output and scratch files are never committed by accident.
+- **Print the paths.** A formatter edit that lands in a commit invisibly is
+  worse than the failure it replaces. Prek hides hook stdout on success, so the
+  list surfaces only when something else fails — which is the right time.
+
+Its scope is bounded by the stash: during a commit the only tracked
+modifications the wrapper can see are the content already staged plus the
+fixer's own edits. One caveat remains — a fixer that reformats a tracked file
+nobody touched (because it was committed unformatted) will sweep that file into
+the commit. Formatting the repository once removes the case.
+
+Verify it rather than assuming: commit a deliberately misformatted file and
+confirm both that the commit succeeds without a second attempt and that the
+recorded blob is the formatted one.
+
 Prek stashes unstaged changes for pre-commit runs. Pause agents, editors, watchers, and generators that can change the tree during the hook. If that cannot be guaranteed, install only the pre-push hook for the slow suite and run the fast gate manually until the tree is stable.
 
 Canonical manual verification:

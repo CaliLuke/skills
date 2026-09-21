@@ -182,6 +182,8 @@ Create or extend `.pre-commit-config.yaml`. Use unique hook IDs. Make `prek run 
 
 Use a fast, non-mutating pre-commit gate. Put type-aware lint, dead code, duplicates, tests, coverage, and builds in pre-push, manual, and CI. Do not install Husky and `prek` hooks for the same stage.
 
+If the repository instead runs the fixer at pre-commit, that hook must stage what it rewrites, or every commit touching a formatted file fails once and has to be retyped. See the mutating-stage recipe in [references/orchestration.md](references/orchestration.md).
+
 Document these commands in the repository's existing agent/contributor guide:
 
 ```text

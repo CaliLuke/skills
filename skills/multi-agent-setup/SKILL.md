@@ -1,126 +1,83 @@
 ---
 name: multi-agent-setup
-description: Share skills and top-level instructions across coding agents (Claude Code and others) via symlinks. Use for "set up multi-agent", "share skills between agents", "link AGENTS.md to CLAUDE.md", "unify agent configs", or pointing `.agents/skills` and `.claude/skills` at the same place. Auto-detects which side (`.agents/`+`AGENTS.md` or `.claude/`+`CLAUDE.md`) already has content and makes the other a symlink into it; defaults to `.agents/` canonical when starting fresh.
+description: Share repository instructions and skills across coding agents. Use for "set up multi-agent", "share skills between agents", "unify agent configs", migrating CLAUDE.md to AGENTS.md, or sharing `.agents/skills` and `.claude/skills`. Use AGENTS.md as the shared instruction file and symlink shared skill directories without duplicating content.
 ---
 
 # Multi-agent setup
 
-Make the current repo usable by both Claude Code and other agent systems without duplicating skills or top-level instructions.
+Make the current repo usable by Claude Code and other agent systems without duplicating skills or top-level instructions. Choose the instruction-file arrangement and canonical skills directory independently.
 
-## Convention
+## Instruction files
 
-One side is **canonical** (holds the real files), the other is a **consumer** (symlinks pointing in). Either direction is valid:
+[Claude Code 2.1.277](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21277) added an AGENTS.md fallback for projects with no CLAUDE.md. The release also added a **Project instructions** choice in `/config` and excluded Bedrock, Vertex, and Foundry at launch. An existing CLAUDE.md takes precedence under the default behavior; do not assume both files are combined.
 
-- `.agents/skills/` + `AGENTS.md` canonical, `.claude/skills` + `CLAUDE.md` as symlinks — preferred for greenfield.
-- `.claude/skills/` + `CLAUDE.md` canonical, `.agents/skills` + `AGENTS.md` as symlinks — preferred when the repo is already Claude-first.
+Use **AGENTS.md as the canonical instruction file**. If CLAUDE.md exists, migrate its content into AGENTS.md and remove the old CLAUDE.md file or link after preserving its content. **Never create CLAUDE.md**, including a compatibility symlink. Older versions or unsupported providers do not change this rule; report a known compatibility limitation instead of creating the file.
 
-The skill picks the canonical side from what's already on disk. It only asks the user when there's a genuine conflict.
+Inspect AGENTS.md and CLAUDE.md, including symlink targets, before changing them:
 
-## Step 0: Detect canonical direction
+| Existing state | Action |
+| --- | --- |
+| AGENTS.md only | Keep it. Do not create CLAUDE.md. |
+| CLAUDE.md is a real file; AGENTS.md is absent | Move CLAUDE.md to AGENTS.md. |
+| Neither file | Use AGENTS.md for new shared instructions. If writing instructions is outside the request, report the missing file and continue with skills. |
+| `CLAUDE.md -> AGENTS.md`, with a real AGENTS.md | Keep AGENTS.md and remove only the CLAUDE.md symlink. |
+| `AGENTS.md -> CLAUDE.md`, with a real CLAUDE.md | Remove the AGENTS.md symlink, then move the real CLAUDE.md to AGENTS.md. |
+| Both are real files | Merge their instructions into AGENTS.md, preserving unique content and consolidating duplicates. Remove CLAUDE.md only after verifying the merge. Ask only if contradictory instructions require the user's decision. |
+| Broken, cyclic, or unexpected link | Inspect the target before migrating. Preserve readable instruction content in AGENTS.md and remove only the obsolete CLAUDE.md entry, without deleting an external target. If the intended content cannot be recovered or identified, report the unresolved migration. |
 
-Run this first. It sets `$CANON_MD`, `$CONSUMER_MD`, `$CANON_SKILLS_REL`, `$CONSUMER_SKILLS`, and `$CONSUMER_SKILLS_TARGET` (the relative path the consumer symlink should point at).
+Never delete the only real copy or leave AGENTS.md pointing at a removed CLAUDE.md. Do not infer support for user-global or nested instruction files, or `.agents/skills` discovery, from the project-level release note. This workflow targets the repository's top-level instruction files.
+
+## Shared skills
+
+Native AGENTS.md support does not replace skill-directory sharing. Select the canonical skills directory from the skills already on disk, independently of which instruction file exists:
+
+- `.agents/skills/` has the real content: link `.claude/skills -> ../.agents/skills`.
+- `.claude/skills/` has the real content: link `.agents/skills -> ../.claude/skills`.
+- Neither has content: default to `.agents/skills/` as canonical.
+- Both have real content: inspect and reconcile the contents before linking. Ask only when a content conflict or ownership choice needs the user's decision.
+- An existing link resolves correctly: preserve its direction. Inspect broken or unexpected links before retargeting; do not create a symlink cycle.
+
+For another convention such as `.codex/skills`, follow the user's stated choice; otherwise establish the intended source before linking.
+
+Once the source and destination are established, set these variables (swap the paths and target for a Claude-first skills directory):
 
 ```bash
-agents_md_real=0; claude_md_real=0
-[ -f AGENTS.md ] && [ ! -L AGENTS.md ] && agents_md_real=1
-[ -f CLAUDE.md ] && [ ! -L CLAUDE.md ] && claude_md_real=1
+CANON_SKILLS=.agents/skills
+CONSUMER_SKILLS=.claude/skills
+CONSUMER_SKILLS_TARGET=../.agents/skills
+```
 
-agents_skills_real=0; claude_skills_real=0
-[ -d .agents/skills ] && [ ! -L .agents/skills ] && [ -n "$(ls -A .agents/skills 2>/dev/null)" ] && agents_skills_real=1
-[ -d .claude/skills ] && [ ! -L .claude/skills ] && [ -n "$(ls -A .claude/skills 2>/dev/null)" ] && claude_skills_real=1
+Then link safely:
 
-# Conflict: both sides have real content. Stop and let the user merge.
-if { [ $agents_md_real -eq 1 ] && [ $claude_md_real -eq 1 ]; } \
-   || { [ $agents_skills_real -eq 1 ] && [ $claude_skills_real -eq 1 ]; }; then
-  echo "Both .agents/ and .claude/ have real content. Ask the user which side should be canonical and merge the other in before re-running."
+```bash
+# The canonical path must be a real directory or absent.
+if [ -L "$CANON_SKILLS" ] || { [ -e "$CANON_SKILLS" ] && [ ! -d "$CANON_SKILLS" ]; }; then
+  echo "Inspect the canonical skills path before proceeding: $CANON_SKILLS"
   exit 1
 fi
 
-# Pick canonical: whichever side has real content; default to .agents when both empty.
-if [ $claude_md_real -eq 1 ] || [ $claude_skills_real -eq 1 ]; then
-  CANON_MD=CLAUDE.md;  CONSUMER_MD=AGENTS.md
-  CANON_SKILLS=.claude/skills;  CONSUMER_SKILLS=.agents/skills
-  CONSUMER_SKILLS_TARGET=../.claude/skills
-else
-  CANON_MD=AGENTS.md;  CONSUMER_MD=CLAUDE.md
-  CANON_SKILLS=.agents/skills;  CONSUMER_SKILLS=.claude/skills
-  CONSUMER_SKILLS_TARGET=../.agents/skills
-fi
-
-echo "Canonical: $CANON_MD + $CANON_SKILLS"
-echo "Consumer:  $CONSUMER_MD -> $CANON_MD, $CONSUMER_SKILLS -> $CONSUMER_SKILLS_TARGET"
-```
-
-## Step 1: Link `$CONSUMER_MD` → `$CANON_MD`
-
-Skip this step entirely if `$CANON_MD` doesn't exist yet — let the user create the canonical instructions file first, then re-run.
-
-```bash
-if [ ! -f "$CANON_MD" ]; then
-  echo "$CANON_MD missing — skipping top-level link. Create it and re-run if you want CLAUDE.md/AGENTS.md unified."
-else
-  if [ -e "$CONSUMER_MD" ] && [ ! -L "$CONSUMER_MD" ]; then
-    echo "$CONSUMER_MD exists as a regular file. Stop and ask the user before overwriting."
-    exit 1
-  fi
-  if [ -L "$CONSUMER_MD" ] && [ "$(readlink "$CONSUMER_MD")" != "$CANON_MD" ]; then
-    echo "$CONSUMER_MD is already a symlink to $(readlink "$CONSUMER_MD"). Confirm with the user before retargeting."
-    exit 1
-  fi
-  ln -sfn "$CANON_MD" "$CONSUMER_MD"
-fi
-```
-
-## Step 2: Link `$CONSUMER_SKILLS` → `$CANON_SKILLS`
-
-```bash
 mkdir -p "$CANON_SKILLS" "$(dirname "$CONSUMER_SKILLS")"
 
-# If the consumer path is a non-empty real directory, do not destroy it.
-if [ -d "$CONSUMER_SKILLS" ] && [ ! -L "$CONSUMER_SKILLS" ]; then
-  if [ -z "$(ls -A "$CONSUMER_SKILLS" 2>/dev/null)" ]; then
-    rmdir "$CONSUMER_SKILLS"
-  else
-    echo "$CONSUMER_SKILLS is a non-empty directory. Stop and ask the user how to merge into $CANON_SKILLS."
-    echo "To migrate manually: mv $CONSUMER_SKILLS/* $CANON_SKILLS/ && rmdir $CONSUMER_SKILLS, then re-run."
+if [ -L "$CONSUMER_SKILLS" ]; then
+  if [ "$(readlink "$CONSUMER_SKILLS")" != "$CONSUMER_SKILLS_TARGET" ]; then
+    echo "Inspect the existing consumer symlink before retargeting: $CONSUMER_SKILLS"
     exit 1
   fi
-fi
-
-# If the consumer is already a symlink pointing somewhere else, confirm first.
-if [ -L "$CONSUMER_SKILLS" ] && [ "$(readlink "$CONSUMER_SKILLS")" != "$CONSUMER_SKILLS_TARGET" ]; then
-  echo "$CONSUMER_SKILLS is already a symlink to $(readlink "$CONSUMER_SKILLS"). Confirm with the user before retargeting."
+elif [ -d "$CONSUMER_SKILLS" ]; then
+  # rmdir succeeds only for an empty directory, including hidden entries.
+  rmdir "$CONSUMER_SKILLS" || exit 1
+elif [ -e "$CONSUMER_SKILLS" ]; then
+  echo "Consumer path is not a directory: $CONSUMER_SKILLS"
   exit 1
 fi
 
 ln -sfn "$CONSUMER_SKILLS_TARGET" "$CONSUMER_SKILLS"
 ```
 
-## Step 3: Verify
+## Verify and report
 
-```bash
-ls -l "$CONSUMER_MD" "$CONSUMER_SKILLS" 2>/dev/null
-[ -L "$CONSUMER_MD" ] && readlink "$CONSUMER_MD"
-readlink "$CONSUMER_SKILLS"
-test -e "$CONSUMER_SKILLS"/. && echo "OK: skills symlink resolves"
-[ -L "$CONSUMER_MD" ] && test -e "$CONSUMER_MD" && echo "OK: md symlink resolves"
-```
+- Confirm AGENTS.md is readable, the migrated instructions are preserved, and CLAUDE.md is absent (including dangling symlinks). If no instructions existed and authoring them was outside the request, report that instead. Do not report a migration as complete while conflicts or broken links remain.
+- Confirm the consumer skills link resolves to the canonical directory and exposes its skill files. Re-running should preserve a working setup.
+- Report the instruction arrangement, canonical skills directory, and any known compatibility limitations or unresolved conflicts. Do not claim Claude Code loaded AGENTS.md based only on filesystem checks; verify through Claude Code's Project instructions setting when runtime confirmation is needed.
 
-Each `readlink` should print the canonical relative target. The skills `OK` line should always print; the md `OK` line only prints when Step 1 actually created a link.
-
-## Committing the symlinks
-
-The symlinks are tiny and use relative targets, so they travel with the repo. Typical setup is to commit both the top-level md symlink and the skills symlink so collaborators inherit the wiring on checkout — no need to gitignore them. Leave staging to the user.
-
-## Safety rules
-
-- Never overwrite a real consumer-side file or a non-empty consumer-side skills directory without explicit user confirmation — they may contain unique content the user has not migrated yet.
-- Use `ln -sfn` (force + no-dereference) so re-running the skill is idempotent on existing symlinks but does not follow into the target directory.
-- Use relative link targets so the repo remains portable.
-- Do not touch `.gitignore` or commit anything; leave staging decisions to the user.
-
-## When NOT to use
-
-- The repo already has both symlinks resolving correctly — running again is harmless but unnecessary; just report status.
-- Both `.agents/` and `.claude/` have real, unique content. Detection will stop; ask the user which side wins and merge the other in before re-running.
-- The user uses a different convention (e.g. `.codex/` as canonical). Confirm the canonical directory before linking.
+Use relative links so they travel with the repo. Never overwrite unique files or non-empty directories without resolving their contents within the user's authorization. Do not change `.gitignore`, stage, or commit unless requested. The shared instructions and any required symlinks can be committed so collaborators inherit the setup.

@@ -13,11 +13,13 @@ For a tiny cohesive module, a lightweight scope/size check plus initial inspecti
 
 ## Function-level policy
 
-Prefer a metric the repository already understands. Otherwise, cognitive complexity reporting from 20 is a reasonable starting point for review; a maintainability-index floor of 20 is an optional additional signal. Calibrate using actual functions and document the selected thresholds. Do not enable several correlated metrics simply to increase the number of checks.
+Use maintainability index as the default function-level measure, with a starting floor of 20 and higher scores indicating better maintainability. Preserve an explicitly chosen repository policy and calibrate with actual functions. Cognitive/cyclomatic complexity can remain supporting evidence; do not enable several correlated gates merely to increase their count.
 
-New functions violating the selected limits fail. Existing violations may be baselined after review, with their measured values retained. A function already above the complexity limit must fail when its complexity increases; a baselined maintainability index must fail when it declines. Compare stable function identity (module/package, receiver, function) rather than line number alone.
+New functions below the selected score floor fail. Existing violations may be baselined after review, with their measured values retained. A function already above the complexity limit must fail when its complexity increases; a baselined maintainability index must fail when it declines. Compare stable function identity (module/package, receiver, function) rather than line number alone.
 
 A diagnostic-presence/count baseline is insufficient: it can hide a function growing from complexity 30 to 60 while remaining “one known warning.” Extract numeric values from supported analyzer output, or retain a source/body fingerprint and require renewed review when that flagged implementation changes. Document the latter as a review trigger rather than a numeric comparison. Fail clearly when output cannot be parsed; never assume the old value still applies.
+
+A score already at zero cannot decline further. Require explicit review of changes to those declarations (or conservatively their files) using a source fingerprint, and describe this as a review trigger rather than a measured regression.
 
 Line-diff lint modes alone can also miss a worsening function whose diagnostic points at an unchanged declaration. The full gate must inspect the complete affected declaration/package and compare it with the accepted baseline.
 
@@ -41,8 +43,8 @@ Do not baseline new defects from the current implementation as historical debt. 
 
 For a new comparator or policy, use a small temporary Go module or analyzer-output fixture as appropriate. Verify:
 
-- A new over-limit function fails.
-- A known function worsening fails even when the diagnostic count and declaration line stay unchanged.
+- A new function below the maintainability floor fails.
+- A known function with a declining score fails even when the diagnostic count and declaration line stay unchanged; changed zero-score code triggers review.
 - Unchanged reviewed debt passes; an improvement passes and is visible for ratchet tightening.
 - A growing receiver or newly disconnected responsibility fails the chosen structural policy or triggers its documented review path.
 - A narrow justified suppression does not hide the same defect elsewhere.

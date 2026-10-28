@@ -5,7 +5,7 @@ description: Set up or review Go quality gates for correctness, maintainability,
 
 # Go quality gates
 
-Build a gate system that detects regressions and makes accepted debt visible. A passing build and test suite does not establish maintainability. Complexity reports alone do not satisfy the maintainability gate.
+Build a gate system that detects regressions and makes accepted debt visible. A passing build and test suite does not establish maintainability. Maintainability index is the default function-level measure; higher scores are better. Reports alone do not satisfy the maintainability gate.
 
 Preserve the repository's canonical command, tool pins, hook manager, build tags, and environment setup. Extend an existing system instead of installing a competing one. For a new setup, use Prek as the entry point and a non-mutating `check.sh` underneath; keep formatting fixes separate.
 
@@ -25,7 +25,7 @@ Record a concise inventory:
 | Module hygiene | Non-mutating tidy-drift check, e.g. supported `go mod tidy -diff` |
 | Dead code | Reachability appropriate to executable entry points; exported library API is not assumed unused |
 | Duplication | Findings are parsed and rejected or compared with a reviewed baseline; tool exit 0 alone is insufficient |
-| Function maintainability | Enforced complexity/maintainability policy, including worsening existing findings |
+| Function maintainability | Enforced maintainability-score floors, including worsening existing findings |
 | Structural maintainability | Inspected receiver/package/file hotspots, a working structural check, and explicit accepted debt |
 | Tests and coverage | Relevant unit/integration tests run; fresh complete coverage is required before threshold comparison |
 | Orchestration | Canonical command and CI/hooks invoke the same checks; missing tools and incomplete analysis fail |
@@ -40,7 +40,7 @@ Read [references/maintainability.md](references/maintainability.md) when adding 
 
 At minimum:
 
-- Enforce function complexity with an existing suitable rule, or add a cognitive/cyclomatic complexity checker. Retain a maintainability-index rule if the repository uses one; add it when the requested policy includes that measure. Metrics complement structural review; none proves good design by itself.
+- Enforce maintainability index by default, using `maintidx` or an equivalent existing score. Retain other complexity metrics when the repository needs them, but do not substitute a cyclomatic-complexity cap for a requested maintainability score. Metrics complement structural review; none proves good design by itself.
 - Inspect large receivers, disconnected responsibilities in large files/packages, broad dependency holders, and cross-layer calls. Use an AST/type-aware tool such as Lagotto when compatible, alongside direct inspection of representative findings.
 - Ratchet new and worsening violations. Do not grandfather unlimited growth in an already flagged function or receiver.
 - Review and disclose legacy hotspots before establishing a baseline. Distinguish accepted debt from false positives, with narrow reasons and follow-up work for meaningful deferred refactors. File tickets when authorized; otherwise provide concrete drafts.
@@ -63,11 +63,8 @@ version: "2"
 linters:
   default: standard
   enable:
-    - gocognit
     - maintidx
   settings:
-    gocognit:
-      min-complexity: 20
     maintidx:
       under: 20
   exclusions:
